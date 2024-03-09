@@ -40,7 +40,7 @@ def generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, discretization='
 
     mesh = np.zeros((num_pts_R, num_pts_L, 3))
     mesh[:, :, 0] = (np.outer(x, np.ones(num_pts_R))).T * L
-    mesh[:, :, 1] = np.outer((np.arange(num_pts_R) / (num_pts_R-1) - 1/2), np.ones(num_pts_L)*height) 
+    mesh[:, :, 1] = np.outer((np.arange(num_pts_R) / (num_pts_R-1) - 1/2), np.ones(num_pts_L)*height*2) 
     mesh[:, :, 2] = 0.
 
     return x,height, mesh
@@ -54,7 +54,8 @@ if __name__ == '__main__':
     s_2_ind = num_pts_L-3
 
 
-    x, height, mesh = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind,b_coeff=0.05)
+    # x, height, mesh = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind,b_coeff=0.05)
+    x, height, mesh = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind,a_coeff=0.5)
     # plt.plot(x,width)
     # plt.plot(x,height)
 
@@ -62,7 +63,8 @@ if __name__ == '__main__':
     for i in range(num_pts_R):
         plt.plot(mesh[i,:,0],mesh[i,:,1]+0.5, '-k')
 
-    x, height, mesh_1 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, b_coeff=0.08)
+    # x, height, mesh_1 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, b_coeff=0.08)
+    x, height, mesh_1 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind,a_coeff=0.65)
     # plt.plot(x,width)
     # plt.plot(x,height)
 
@@ -70,7 +72,8 @@ if __name__ == '__main__':
     for i in range(num_pts_R):
         plt.plot(mesh_1[i,:,0],mesh_1[i,:,1]+0.25, '-k')
 
-    x, height, mesh_2 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, b_coeff=0.11)
+    # x, height, mesh_2 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, b_coeff=0.11)
+    x, height, mesh_2 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind,a_coeff=0.8)
     # plt.plot(x,width)
     # plt.plot(x,height)
 
@@ -78,13 +81,14 @@ if __name__ == '__main__':
     for i in range(num_pts_R):
         plt.plot(mesh_2[i,:,0],mesh_2[i,:,1]+0., '-k')
 
-    x, height, mesh_3 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, b_coeff=.14)
+    # x, height, mesh_3 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, b_coeff=.14)
+    x, height, mesh_3 = generate_eel_carling(num_pts_L,num_pts_R,L,s_1_ind,s_2_ind, a_coeff=.95)
     # plt.plot(x,width)
     # plt.plot(x,height)
 
-    plt.plot(mesh_3[:,:,0],mesh_3[:,:,1]-0.25, '.')
+    plt.plot(mesh_3[:,:,0],mesh_3[:,:,1]-0.35, '.')
     for i in range(num_pts_R):
-        plt.plot(mesh_3[i,:,0],mesh_3[i,:,1]-0.25, '-k')
+        plt.plot(mesh_3[i,:,0],mesh_3[i,:,1]-0.35, '-k')
 
     # x, height, mesh_2 = generate_eel_carling(num_pts_L,num_pts_R,L*2,s_1_ind,s_2_ind)
     # plt.plot(mesh_2[:,:,0],mesh_2[:,:,1], '.')

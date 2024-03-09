@@ -4,84 +4,131 @@
 
 # system evaluation block
 
-# op _0003_power_combination_eval
-# LANG: a_coeff, L --> _0004
+# op _0006_power_combination_eval
+# LANG: a_coeff, L --> _0007
 # SHAPES: (1,), (1,) --> (1,)
 # full namespace: 
-v3__0004 = (v1_a_coeff)*(v0_L)
-v3__0004 = v3__0004.reshape((1,))
+v6__0007 = (v1_a_coeff)*(v0_L)
+v6__0007 = v6__0007.reshape((1,))
 
-# op _0007 expand_scalar_eval
-# LANG: L --> _0008
+# op _000a expand_scalar_eval
+# LANG: L --> _000b
 # SHAPES: (1,) --> (41,)
 # full namespace: 
-v5__0008 = np.empty((41,))
-v5__0008.fill(v0_L.item())
+v8__000b = np.empty((41,))
+v8__000b.fill(v0_L.item())
 
-# op _0009_power_combination_eval
-# LANG: _0008 --> _000a
+# op _000c_power_combination_eval
+# LANG: _000b --> _000d
 # SHAPES: (41,) --> (41,)
 # full namespace: 
-v6__000a = (v5__0008)
-v6__000a = (v6__000a*_0009_coeff).reshape((41,))
+v9__000d = (v8__000b)
+v9__000d = (v9__000d*_000c_coeff).reshape((41,))
 
-# op _000b expand_scalar_eval
-# LANG: _0004 --> _000c
+# op _000e expand_scalar_eval
+# LANG: _0007 --> _000f
 # SHAPES: (1,) --> (41,)
 # full namespace: 
-v7__000c = np.empty((41,))
-v7__000c.fill(v3__0004.item())
+v10__000f = np.empty((41,))
+v10__000f.fill(v6__0007.item())
 
-# op _000f_linear_combination_eval
-# LANG: _000a, _000c --> _000g
+# op _000i_linear_combination_eval
+# LANG: _000d, _000f --> _000j
 # SHAPES: (41,), (41,) --> (41,)
 # full namespace: 
-v9__000g = v6__000a+-1*v7__000c
+v12__000j = v9__000d+-1*v10__000f
 
-# op _000h_power_combination_eval
-# LANG: _000g, _000c --> _000i
+# op _000k_power_combination_eval
+# LANG: _000j, _000f --> _000l
 # SHAPES: (41,), (41,) --> (41,)
 # full namespace: 
-v10__000i = (v9__000g)*(v7__000c**-1)
-v10__000i = v10__000i.reshape((41,))
+v13__000l = (v12__000j)*(v10__000f**-1)
+v13__000l = v13__000l.reshape((41,))
 
-# op _000j_power_combination_eval
-# LANG: _000i --> _000k
+# op _000m_power_combination_eval
+# LANG: _000l --> _000n
 # SHAPES: (41,) --> (41,)
 # full namespace: 
-v11__000k = (v10__000i**2)
-v11__000k = v11__000k.reshape((41,))
+v14__000n = (v13__000l**2)
+v14__000n = v14__000n.reshape((41,))
 
-# op _0005_power_combination_eval
-# LANG: b_coeff, L --> _0006
+# op _0008_power_combination_eval
+# LANG: b_coeff, L --> _0009
 # SHAPES: (1,), (1,) --> (1,)
 # full namespace: 
-v4__0006 = (v2_b_coeff)*(v0_L)
-v4__0006 = v4__0006.reshape((1,))
+v7__0009 = (v2_b_coeff)*(v0_L)
+v7__0009 = v7__0009.reshape((1,))
 
-# op _000l_linear_combination_eval
-# LANG: _000k --> _000m
+# op _000o_linear_combination_eval
+# LANG: _000n --> _000p
 # SHAPES: (41,) --> (41,)
 # full namespace: 
-v12__000m = _000l_constant+-1*v11__000k
+v15__000p = _000o_constant+-1*v14__000n
 
-# op _000d expand_scalar_eval
-# LANG: _0006 --> _000e
+# op _000g expand_scalar_eval
+# LANG: _0009 --> _000h
 # SHAPES: (1,) --> (41,)
 # full namespace: 
-v8__000e = np.empty((41,))
-v8__000e.fill(v4__0006.item())
+v11__000h = np.empty((41,))
+v11__000h.fill(v7__0009.item())
 
-# op _000n_power_combination_eval
-# LANG: _000m --> _000o
+# op _000q_power_combination_eval
+# LANG: _000p --> _000r
 # SHAPES: (41,) --> (41,)
 # full namespace: 
-v13__000o = (v12__000m**0.5)
-v13__000o = v13__000o.reshape((41,))
+v16__000r = (v15__000p**0.5)
+v16__000r = v16__000r.reshape((41,))
 
-# op _000p_power_combination_eval
-# LANG: _000e, _000o --> eel_height
+# op _000s_power_combination_eval
+# LANG: _000h, _000r --> eel_height
 # SHAPES: (41,), (41,) --> (41,)
 # full namespace: 
-v14_eel_height = (v8__000e)*(v13__000o)
-v14_eel_height = v14_eel_height.reshape((41,))
+v17_eel_height = (v11__000h)*(v16__000r)
+v17_eel_height = v17_eel_height.reshape((41,))
+
+# op _000x expand_array_eval
+# LANG: eel_height --> _000y
+# SHAPES: (41,) --> (41, 5)
+# full namespace: 
+v20__000y = np.einsum('a,b->ab', v17_eel_height.reshape((41,)) ,np.ones((5,))).reshape((41, 5))
+
+# op _000C_power_combination_eval
+# LANG: _000y --> _000D
+# SHAPES: (41, 5) --> (41, 5)
+# full namespace: 
+v22__000D = (v20__000y)
+v22__000D = (v22__000D*_000C_coeff).reshape((41, 5))
+
+# op _000E_power_combination_eval
+# LANG: _000D --> _000F
+# SHAPES: (41, 5) --> (41, 5)
+# full namespace: 
+v23__000F = (v22__000D)
+v23__000F = (v23__000F*_000E_coeff).reshape((41, 5))
+
+# op _000v expand_array_eval
+# LANG: _000d --> _000w
+# SHAPES: (41,) --> (41, 5)
+# full namespace: 
+v19__000w = np.einsum('a,b->ab', v9__000d.reshape((41,)) ,np.ones((5,))).reshape((41, 5))
+
+# op _000G reshape_eval
+# LANG: _000F --> _000H
+# SHAPES: (41, 5) --> (41, 5, 1)
+# full namespace: 
+v24__000H = v23__000F.reshape((41, 5, 1))
+
+# op _000z reshape_eval
+# LANG: _000w --> _000A
+# SHAPES: (41, 5) --> (41, 5, 1)
+# full namespace: 
+v21__000A = v19__000w.reshape((41, 5, 1))
+
+# op _000B_indexed_passthrough_eval
+# LANG: _000A, _000H --> eel_rigid_mesh
+# SHAPES: (41, 5, 1), (41, 5, 1) --> (41, 5, 3)
+# full namespace: 
+v18_eel_rigid_mesh__temp[i_v21__000A__000B_indexed_passthrough_eval] = v21__000A.flatten()
+v18_eel_rigid_mesh = v18_eel_rigid_mesh__temp.copy()
+v18_eel_rigid_mesh__temp[i_v24__000H__000B_indexed_passthrough_eval] = v24__000H.flatten()
+v18_eel_rigid_mesh = v18_eel_rigid_mesh__temp.copy()
