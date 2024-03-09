@@ -28,9 +28,9 @@ class EelGeometryModel(csdl.Model):
         surface_shape = self.parameters['surface_shape']
 
         x, eel_height = self.compute_eel_height()
-        self.register_output('eel_height', eel_height)
+        self.register_output(surface_name+'_height', eel_height)
 
-        rigid_fish_mesh = self.create_output('eel_rigid_mesh', val=np.zeros((num_pts_L,num_pts_R, 3)))
+        rigid_fish_mesh = self.create_output(surface_name+'_rigid_mesh', val=np.zeros(surface_shape))
 
         self.compute_rigid_fish_mesh(x, eel_height,rigid_fish_mesh)
 
@@ -48,9 +48,7 @@ class EelGeometryModel(csdl.Model):
 
         a = a_coeff * L
         b = b_coeff * L
-
         L_expand = csdl.expand(L,shape=(num_pts_L,))
-
         if discretization == 'uniform':
             x = np.linspace(start_epsilon,1,num_pts_L) * L_expand
         a_expand = csdl.expand(a,shape=x.shape)
@@ -60,7 +58,6 @@ class EelGeometryModel(csdl.Model):
         return x, height
 
     def compute_rigid_fish_mesh(self, x, height,rigid_fish_mesh):
-
         s_1_ind = self.parameters['s_1_ind']
         s_2_ind = self.parameters['s_2_ind']
         discretization = self.parameters['discretization']
@@ -70,8 +67,6 @@ class EelGeometryModel(csdl.Model):
 
         x_expand_2d = csdl.expand(x,shape=(num_pts_L,num_pts_R), indices='i->ij')
         height_expand = csdl.expand(height,shape=(num_pts_L,num_pts_R), indices='i->ij')
-
-
         rigid_fish_mesh[:,:,0] = csdl.reshape(x_expand_2d,new_shape=(num_pts_L,num_pts_R,1))
         rigid_fish_mesh[:,:,1] = csdl.reshape(np.outer(np.arange(num_pts_R) / (num_pts_R-1) - 1/2, np.ones(num_pts_L)).T * height_expand *2, new_shape=(num_pts_L,num_pts_R,1))
         # times 2 since the height is half axis length
@@ -93,11 +88,10 @@ if __name__ == '__main__':
                                         surface_shape=[num_pts_L,num_pts_R, 3],
                                         s_1_ind=s_1_ind,s_2_ind=s_2_ind)
 
-    
     eel_geometry_model.create_input('L', val=L)
     eel_geometry_model.create_input('a_coeff', val=0.55)
     eel_geometry_model.create_input('b_coeff', val=0.08)
-    simulator = python_csdl_backend.Simulator(eel_geometry_model, display_scripts=True)
+    simulator = python_csdl_backend.Simulator(eel_geometry_model, display_scripts=False)
     simulator.run()
 
     simulator.check_partials(compact_print=True)
@@ -105,24 +99,16 @@ if __name__ == '__main__':
     height = simulator['eel_height']
     x = np.linspace(0,L,num_pts_L)
 
-    
     import matplotlib.pyplot as plt
     plt.rcParams['text.usetex'] = False
 
 
     plt.figure()
-
-
     # plt.plot(x, height, '.')
     plt.axis('equal')
     plt.title('Eel Height Profile')
 
-    # plt.show()
-
     mesh = simulator['eel_rigid_mesh']
-
     plt.plot(mesh[:,:,0],mesh[:,:,1]+0., '.')
-    # for i in range(num_pts_R):
-    # plt.show()
-    #     plt.plot(mesh_2[i,:,0],mesh_2[i,:,1]+0., '-k')
+
     plt.show()
