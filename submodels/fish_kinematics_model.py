@@ -34,7 +34,7 @@ class EelKinematicsModel(csdl.Model):
         wave_number = self.declare_variable('wave_number')
         amplitude_profile_coeff = self.declare_variable('amplitude_profile_coeff')
 
-        time_steps_normalized = np.linspace(0, num_period, num_time_steps)
+        time_steps_normalized = np.linspace(0, num_period, self.num_time_steps)
         # time_vector = csdl.expand(tail_frequency, (time_steps_normalized.shape)) * time_steps_normalized
         # self.register_output('time_vector', time_vector)
         time_vector = self.create_input('time_vector', val=time_steps_normalized)
