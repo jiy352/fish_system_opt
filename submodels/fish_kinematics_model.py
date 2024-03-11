@@ -31,7 +31,7 @@ class EelKinematicsModel(csdl.Model):
 
         tail_amplitude = self.declare_variable('tail_amplitude')
         tail_frequency = self.declare_variable('tail_frequency')
-        wave_number = self.declare_variable('wave_number')
+        wave_length = self.declare_variable('wave_length')
         amplitude_profile_coeff = self.declare_variable('amplitude_profile_coeff')
 
         time_steps_normalized = np.linspace(0, num_period, self.num_time_steps)
@@ -44,9 +44,9 @@ class EelKinematicsModel(csdl.Model):
         L = self.declare_variable('L')        
 
         # swimming_fish_mesh, swimming_fish_velocsity = self.compute_swimming_fish_kinematics()
-        self.compute_swimming_fish_kinematics(L, tail_amplitude, tail_frequency, wave_number, amplitude_profile_coeff, time_vector)
+        self.compute_swimming_fish_kinematics(L, tail_amplitude, tail_frequency, wave_length, amplitude_profile_coeff, time_vector)
 
-    def compute_swimming_fish_kinematics(self, L, tail_amplitude, tail_frequency, wave_number, amplitude_profile_coeff, time_vector):
+    def compute_swimming_fish_kinematics(self, L, tail_amplitude, tail_frequency, wave_length, amplitude_profile_coeff, time_vector):
         surface_shape = self.parameters['surface_shape']
 
         self.num_pts_L = self.parameters['surface_shape'][0]
@@ -59,7 +59,7 @@ class EelKinematicsModel(csdl.Model):
         L_expand = self.prepare_scaler_variables_to_nnnxny(L)
         tail_amplitude_expand = self.prepare_scaler_variables_to_nnnxny(tail_amplitude)
         amplitude_profile_coeff_expand = self.prepare_scaler_variables_to_nnnxny(amplitude_profile_coeff)
-        wave_number_expand = self.prepare_scaler_variables_to_nnnxny(wave_number)
+        wave_length_expand = self.prepare_scaler_variables_to_nnnxny(wave_length)
         tail_frequency_expand = self.prepare_scaler_variables_to_nnnxny(tail_frequency)
 
         time_vector_size = time_vector.size
@@ -77,7 +77,7 @@ class EelKinematicsModel(csdl.Model):
         print('tail_amplitude_expand',tail_amplitude_expand.shape)
         print('time_vector_expand',time_vector_expand.shape)
 
-        amplitude_along_body = tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand * wave_number_expand - time_vector_expand))
+        amplitude_along_body = tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)
         self.register_output(self.surface_name+'_amplitude_growth_profile', amplitude_growth_profile)
 
@@ -90,13 +90,13 @@ class EelKinematicsModel(csdl.Model):
         
         
         # lateral velocity is defined as the derivative of the lateral position with respect to time (tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand - time_vector_expand)))
-        lateral_velocity = tail_amplitude_expand * amplitude_growth_profile * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand * wave_number_expand - time_vector_expand))
+        lateral_velocity = tail_amplitude_expand * amplitude_growth_profile * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         fish_collocation_pts_velocity = self.create_output(self.surface_name+'_velocity', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
         fish_collocation_pts_velocity[:,:,:,1] = 0.25*(lateral_velocity[:,:-1,:-1,:]+lateral_velocity[:,:-1,1:,:]+lateral_velocity[:,1:,:-1,:]+lateral_velocity[:,1:,1:,:])
 
 
 
-        # * np.sin(wave_number * x - tail_frequency * t)
+        # * np.sin(wave_length * x - tail_frequency * t)
 
     def prepare_scaler_variables_to_nnnxny(self, var):
         shape = (self.num_time_steps, self.num_pts_L, self.num_pts_R, 1)
@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
     eel_model.create_input('tail_amplitude',val=0.125)
     eel_model.create_input('tail_frequency',val=0.48)
-    eel_model.create_input('wave_number',val=1.0)
+    eel_model.create_input('wave_length',val=1.0)
     eel_model.create_input('amplitude_profile_coeff',val=0.03125)
     
 

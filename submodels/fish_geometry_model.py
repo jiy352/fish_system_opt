@@ -54,6 +54,7 @@ class EelGeometryModel(csdl.Model):
         a_expand = csdl.expand(a,shape=x.shape)
         b_expand = csdl.expand(b,shape=x.shape)
         height = b_expand*(1-((x-a_expand)/a_expand)**2)**0.5
+        # this height is scaling with L right now
 
         return x, height
 

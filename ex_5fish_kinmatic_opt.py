@@ -62,7 +62,7 @@ def run_fish(v_inf):
     #v_x = model.create_input('v_x', val=0.35)
     tail_amplitude = model.create_input('tail_amplitude', val=A)
     tail_frequency = model.create_input('tail_frequency', val=f)
-    wave_number = model.create_input('wave_number', val=lambda_)
+    wave_length = model.create_input('wave_length', val=lambda_)
     linear_relation = model.create_input('linear_relation', val=0.03125)
     # v_x = model.create_input('v_x', val=0.8467351)
     u = model.register_output('u', csdl.expand(v_x,shape=(num_nodes,1)))
@@ -97,16 +97,16 @@ def run_fish(v_inf):
     if True:
         # model.add_design_variable('tail_amplitude',upper=0.2,lower=0.05)
         # model.add_design_variable('tail_frequency',upper=0.6,lower=0.2)
-        # model.add_design_variable('wave_number',upper=2,lower=0.5)
+        # model.add_design_variable('wave_length',upper=2,lower=0.5)
 
         model.add_design_variable('tail_amplitude',upper=0.4,lower=0.05)
         model.add_design_variable('tail_frequency',upper=0.4,lower=0.05)
-        # model.add_design_variable('wave_number',upper=2,lower=1.9)
+        # model.add_design_variable('wave_length',upper=2,lower=1.9)
         # model.add_design_variable('linear_relation',upper=0.03125*3,lower=0.03125*0.5)
 
         model.print_var(tail_amplitude)
         model.print_var(tail_frequency)
-        model.print_var(wave_number)
+        model.print_var(wave_length)
         model.print_var(linear_relation)
 
     # '''
@@ -203,6 +203,6 @@ print('v_x is',sim['v_x'])
 print('efficiency is',sim['efficiency'])
 print('tail amplitude is',sim['tail_amplitude'])
 print('tail frequency is',sim['tail_frequency'])
-print('wave number is',sim['wave_number'])
+print('wave number is',sim['wave_length'])
 print('strouhal number is',sim['tail_amplitude']*sim['tail_frequency']*2/sim['v_x'])
 print('percentage of thrust C_F\n',(-np.average(sim['eel_C_D_i'])-sim['C_F'])* 100/sim['C_F'],'%')
