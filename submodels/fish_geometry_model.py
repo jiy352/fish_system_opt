@@ -68,7 +68,7 @@ class EelGeometryModel(csdl.Model):
         x_expand_2d = csdl.expand(x,shape=(num_pts_L,num_pts_R), indices='i->ij')
         height_expand = csdl.expand(height,shape=(num_pts_L,num_pts_R), indices='i->ij')
         rigid_fish_mesh[:,:,0] = csdl.reshape(x_expand_2d,new_shape=(num_pts_L,num_pts_R,1))
-        rigid_fish_mesh[:,:,1] = csdl.reshape(np.outer(np.arange(num_pts_R) / (num_pts_R-1) - 1/2, np.ones(num_pts_L)).T * height_expand *2, new_shape=(num_pts_L,num_pts_R,1))
+        rigid_fish_mesh[:,:,2] = csdl.reshape(np.outer(np.arange(num_pts_R) / (num_pts_R-1) - 1/2, np.ones(num_pts_L)).T * height_expand *2, new_shape=(num_pts_L,num_pts_R,1))
         # times 2 since the height is half axis length
 
         return rigid_fish_mesh
