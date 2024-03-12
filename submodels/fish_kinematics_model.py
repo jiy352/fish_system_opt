@@ -91,7 +91,7 @@ class EelKinematicsModel(csdl.Model):
         
         # lateral velocity is defined as the derivative of the lateral position with respect to time (tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand - time_vector_expand)))
         lateral_velocity = tail_amplitude_expand * amplitude_growth_profile * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
-        fish_collocation_pts_velocity = self.create_output(self.surface_name+'_velocity', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
+        fish_collocation_pts_velocity = self.create_output(self.surface_name+'_coll_vel', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
         fish_collocation_pts_velocity[:,:,:,1] = 0.25*(lateral_velocity[:,:-1,:-1,:]+lateral_velocity[:,:-1,1:,:]+lateral_velocity[:,1:,:-1,:]+lateral_velocity[:,1:,1:,:])
 
 
@@ -200,7 +200,7 @@ if __name__ == '__main__':
         ax.set_ylabel('Y Label')
         ax.set_zlabel('Z Label')
 
-        velocity_data = simulator['eel_velocity'][i]
+        velocity_data = simulator['eel_coll_vel'][i]
         u = velocity_data[:, :, 0].flatten()  # Velocity components in x
         v = velocity_data[:, :, 1].flatten()  # Velocity components in y
         w = velocity_data[:, :, 2].flatten()  # Velocity components in z
