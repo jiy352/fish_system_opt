@@ -7,6 +7,7 @@ from submodels.fish_kinematics_model import EelKinematicsModel
 
 from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
+from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import EfficiencyModel
 
 
 # script for the optimization of the fish system (try to finish within 100-150 lines)
@@ -73,14 +74,13 @@ fish_system_model.add(eel_kinematics_model, name='EelKinematicsModel')
 #########################################
 # add hydrodynamics model
 #########################################
-
 fish_system_model.add(EelViscousModel(),name='EelViscousModel')
 
 fish_system_model.add(UVLMSolver(num_times=num_time_steps,h_stepsize=h_stepsize,states_dict=states_dict,
                                     surface_properties_dict=surface_properties_dict), 'fish_model')
-'''
-fish_system_model.add(EfficiencyModel(surface_names=surface_names, surface_shapes=ode_surface_shapes,n_ignore=int(num_nodes/N_period)),name='EfficiencyModel')
-'''
+ode_surface_shapes = [(num_time_steps, ) + surface_shape]
+fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
+
 #######################################################################################
 # inputs to the fish_system_model
 #######################################################################################
