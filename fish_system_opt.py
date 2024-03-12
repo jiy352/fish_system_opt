@@ -56,6 +56,32 @@ h_stepsize = tail_frequency_val * num_period / (num_time_steps-1)
 # set up a fish system model
 fish_system_model = csdl.Model()
 
+
+#######################################################################################
+# inputs to the fish_system_model
+#######################################################################################
+
+#########################################
+# inputs to the sub eel_geometry_model
+#########################################
+fish_system_model.create_input('L', val=L)
+fish_system_model.create_input('a_coeff', val=0.55)
+fish_system_model.create_input('b_coeff', val=0.08)
+
+#########################################
+# inputs to the sub kinematics model
+#########################################
+fish_system_model.create_input('tail_amplitude',val=0.125)
+fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
+fish_system_model.create_input('wave_length',val=1.0)
+fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
+
+#########################################
+# inputs to viscous model
+#########################################
+
+
+
 #########################################
 # add geometry and kinematics model
 # generate initial rigid fish mesh
@@ -81,29 +107,8 @@ fish_system_model.add(UVLMSolver(num_times=num_time_steps,h_stepsize=h_stepsize,
 ode_surface_shapes = [(num_time_steps, ) + surface_shape]
 fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
 
-#######################################################################################
-# inputs to the fish_system_model
-#######################################################################################
 
-#########################################
-# inputs to the sub eel_geometry_model
-#########################################
-fish_system_model.create_input('L', val=L)
-fish_system_model.create_input('a_coeff', val=0.55)
-fish_system_model.create_input('b_coeff', val=0.08)
 
-#########################################
-# inputs to the sub kinematics model
-#########################################
-fish_system_model.create_input('tail_amplitude',val=0.125)
-fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
-fish_system_model.create_input('wave_length',val=1.0)
-fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
-
-#########################################
-# inputs to viscous model
-#########################################
-fish_system_model.create_input('v_x',val=v_x_val)
 
 #########################################
 # attach fish system model to simulator
