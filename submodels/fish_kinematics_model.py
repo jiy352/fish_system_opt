@@ -73,9 +73,9 @@ class EelKinematicsModel(csdl.Model):
         # check this 1:
         
         amplitude_growth_profile = (s_expand/L_expand + amplitude_profile_coeff_expand) / (1+amplitude_profile_coeff_expand)
-        print('amplitude_growth_profile',amplitude_growth_profile.shape)
-        print('tail_amplitude_expand',tail_amplitude_expand.shape)
-        print('time_vector_expand',time_vector_expand.shape)
+        # print('amplitude_growth_profile',amplitude_growth_profile.shape)
+        # print('tail_amplitude_expand',tail_amplitude_expand.shape)
+        # print('time_vector_expand',time_vector_expand.shape)
 
         amplitude_along_body = tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)

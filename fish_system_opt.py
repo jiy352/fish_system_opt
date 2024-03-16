@@ -29,24 +29,21 @@ L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
-v_x_val = 0.2
+v_x_val = .5
 
-num_period = 2
+num_period = 3
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh
 
-num_time_steps = 50
+num_time_steps = 150
 # shape to input to the fish hydrodynamic solver model:
 surface_shapes = [(num_time_steps, num_pts_L, num_pts_R, 3)] 
 surface_properties_dict = {'surface_names':[surface_name],
                             'surface_shapes':[surface_shape],
                             'frame':'wing_fixed',}
-states_dict = {
-    'v': np.zeros((num_time_steps, 1)), 'w': np.ones((num_time_steps, 1))*v_x_val,
-    'p': np.zeros((num_time_steps, 1)), 'q': np.zeros((num_time_steps, 1)), 'r': np.zeros((num_time_steps, 1)),
-    'theta': np.zeros((num_time_steps, 1)), 'psi': np.zeros((num_time_steps, 1)),
-    'x': np.zeros((num_time_steps, 1)), 'y': np.zeros((num_time_steps, 1)), 'z': np.zeros((num_time_steps, 1)),
-    'phiw': np.zeros((num_time_steps, 1)), 'gamma': np.zeros((num_time_steps, 1)),'psiw': np.zeros((num_time_steps, 1)),
-}
+    
+# default all nessary states to zero, except for u, which is expanded from v_x
+state_names = ['v', 'w', 'p', 'q', 'r', 'theta', 'psi', 'x', 'y', 'z', 'phiw', 'gamma', 'psiw']
+states_dict = {state: np.zeros((num_time_steps, 1)) for state in state_names}
 
 # TODO: check if this work, also for how v_x is given to the hydrodynamic model
 h_stepsize = tail_frequency_val * num_period / (num_time_steps-1)
@@ -55,7 +52,6 @@ h_stepsize = tail_frequency_val * num_period / (num_time_steps-1)
 #######################################################################################
 # set up a fish system model
 fish_system_model = csdl.Model()
-
 
 #######################################################################################
 # inputs to the fish_system_model
@@ -79,8 +75,8 @@ fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
 #########################################
 # inputs to viscous model
 #########################################
-
-
+v_x = fish_system_model.create_input('v_x', val=v_x_val)
+u = fish_system_model.register_output('u', csdl.expand(v_x,shape=(num_time_steps,1)))
 
 #########################################
 # add geometry and kinematics model
@@ -105,9 +101,8 @@ fish_system_model.add(EelViscousModel(),name='EelViscousModel')
 fish_system_model.add(UVLMSolver(num_times=num_time_steps,h_stepsize=h_stepsize,states_dict=states_dict,
                                     surface_properties_dict=surface_properties_dict), 'fish_model')
 ode_surface_shapes = [(num_time_steps, ) + surface_shape]
-fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
-
-
+fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,
+                                        n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
 
 
 #########################################
