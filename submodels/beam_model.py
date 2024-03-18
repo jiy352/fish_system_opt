@@ -31,14 +31,17 @@ class Run(csdl.Model):
         # self.create_input('fuselage_mesh', shape=(num_nodes, 3), val=fuse_mesh)
 
         wing_forces = np.zeros((num_nodes, 3))
-        wing_forces[:, 2] = 20000*0.1
+        # wing_forces[:, 2] = 20000*0.1
+        wing_forces[:, 2] = 2000
         self.create_input('wing_forces', shape=(num_nodes, 3), val=wing_forces)
 
         # fuse_forces = np.zeros((num_nodes, 3))
         # fuse_forces[:, 2] = 1000
         # self.create_input('fuselage_forces', shape=(num_nodes, 3), val=fuse_forces)
 
-        self.create_input('wing_semi_major_axis', shape=(wing.num_elements), val=0.2)
+        # self.create_input('wing_semi_major_axis', shape=(wing.num_elements), val=0.2)
+        # self.create_input('wing_semi_minor_axis', shape=(wing.num_elements), val=0.05)
+        self.create_input('wing_semi_major_axis', shape=(wing.num_elements), val=0.5)
         self.create_input('wing_semi_minor_axis', shape=(wing.num_elements), val=0.05)
 
         # self.add(BeamModel(beams=[wing, fuselage],
@@ -84,6 +87,7 @@ if __name__ == '__main__':
     # for i in range(wing.num_elements):
     #     ax.add_collection3d(Poly3DCollection(deformed_vertices[i], facecolors='cyan', linewidths=1, edgecolors='red', alpha=0.4))
 
+    # plot deformation
 
     ax.axis('equal')
     plt.axis('off')
@@ -94,3 +98,18 @@ if __name__ == '__main__':
 
     np.set_printoptions(edgeitems=30, linewidth=100000,)
     print(sim['global_mass_matrix'])
+    print(sim['global_stiffness_matrix'].shape)
+
+    #  [𝐶]=𝜂𝑀[𝑀]+𝜂𝐾[𝐾]
+
+    eta_M = 0.1
+    eta_K = 0.1
+    M = sim['global_mass_matrix']
+    K = sim['global_stiffness_matrix']
+    C = eta_M * M + eta_K * K
+
+
+
+    deformation = deformed_wing_mesh - undeformed_wing_mesh
+    plt.plot(deformation[:,2], color='blue')
+    plt.show()

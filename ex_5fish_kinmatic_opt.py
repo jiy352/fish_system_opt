@@ -1,7 +1,7 @@
 '''Example 5 : fish kinematic optimization'''
 
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
-from VAST.utils.make_video_vedo import make_video as make_video_vedo
+# from VAST.utils.make_video_vedo import make_video as make_video_vedo
 import time
 import numpy as np
 import resource
