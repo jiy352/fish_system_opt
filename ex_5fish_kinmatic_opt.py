@@ -1,7 +1,7 @@
 '''Example 5 : fish kinematic optimization'''
 
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
-# from VAST.utils.make_video_vedo import make_video as make_video_vedo
+from VAST.utils.make_video_vedo import make_video as make_video_vedo
 import time
 import numpy as np
 import resource
@@ -22,7 +22,7 @@ before_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 def run_fish(v_inf):
     # nx = 12; ny = 3
-    nx = 41; ny = 5
+    nx = 51; ny = 5
     num_nodes = 70;  
     nt = num_nodes
 
@@ -79,7 +79,6 @@ def run_fish(v_inf):
         s_2_ind = int(ode_surface_shapes[0][1]-5)
         # s_2_ind = int(ode_surface_shapes[0][1]-3)
 
-    model.add(EelViscousModel(),name='EelViscousModel')
 
     model.add(EelActuationModel(surface_names=surface_names,
                                 surface_shapes=ode_surface_shapes,
@@ -92,15 +91,13 @@ def run_fish(v_inf):
                                         surface_properties_dict=surface_properties_dict), 'fish_model')
     model.add(EfficiencyModel(surface_names=surface_names, surface_shapes=ode_surface_shapes,n_ignore=int(num_nodes/N_period)),name='EfficiencyModel')
     # model.add_design_variable('v_x',upper=0.8,lower=0.5)
-    model.add_design_variable('v_x',upper=0.2,lower=0.2)
+    model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
+    model.add_design_variable('v_x',upper=0.8,lower=0.8)
     # '''
     if True:
-        # model.add_design_variable('tail_amplitude',upper=0.2,lower=0.05)
-        # model.add_design_variable('tail_frequency',upper=0.6,lower=0.2)
-        # model.add_design_variable('wave_length',upper=2,lower=0.5)
 
         model.add_design_variable('tail_amplitude',upper=0.4,lower=0.05)
-        model.add_design_variable('tail_frequency',upper=0.4,lower=0.05)
+        model.add_design_variable('tail_frequency',upper=2.,lower=0.4)
         # model.add_design_variable('wave_length',upper=2,lower=1.9)
         # model.add_design_variable('linear_relation',upper=0.03125*3,lower=0.03125*0.5)
 
@@ -131,13 +128,12 @@ def run_fish(v_inf):
 
     sim = python_csdl_backend.Simulator(model)
         
-    t_start = time.time()
     sim.run()
 
     return sim
 
-v_inf = np.array([4.164472e-01])
-# v_inf = np.array([0.1])
+# v_inf = np.array([4.164472e-01])
+v_inf = np.array([0.5])
 
 import matplotlib as mpl
 mpl.rcParams.update(mpl.rcParamsDefault)
@@ -166,17 +162,14 @@ sim = sim_list[0]
 total_fx = np.sum(sim['panel_forces_x'], axis=1)
 thrust = sim['thrust']
 
-
+exit()
 print('percentage of thrust C_F\n',(-np.average(sim['eel_C_D_i'])-sim['C_F'])* 100/sim['C_F'],'%')
-
-# exit()
 
 #####################
 # optimizaton
 #####################
 from modopt.csdl_library import CSDLProblem
 
-from modopt.scipy_library import SLSQP
 from modopt.snopt_library import SNOPT
 # Define problem for the optimization
 prob = CSDLProblem(
@@ -186,11 +179,11 @@ prob = CSDLProblem(
 # optimizer = SLSQP(prob, maxiter=1)
 optimizer = SNOPT(
     prob, 
-    Major_iterations=30,
+    Major_iterations=45,
     # Major_optimality=1e-6,
     Major_optimality=1e-7,
     # Major_feasibility=1e-5,
-    Major_feasibility=1e-3,
+    Major_feasibility=1e-4,
     append2file=True,
     Major_step_limit=.1,
 )
@@ -206,3 +199,17 @@ print('tail frequency is',sim['tail_frequency'])
 print('wave number is',sim['wave_length'])
 print('strouhal number is',sim['tail_amplitude']*sim['tail_frequency']*2/sim['v_x'])
 print('percentage of thrust C_F\n',(-np.average(sim['eel_C_D_i'])-sim['C_F'])* 100/sim['C_F'],'%')
+
+
+simulator = sim
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import time
+plt.rcParams['text.usetex'] = False
+from utils.plots import axis_equal,plot3d
+
+plt.ion()  # Turn on interactive mode
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+plot3d(ax, simulator['eel'], simulator['eel_coll_vel'], ax)

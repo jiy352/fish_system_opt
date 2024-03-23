@@ -11,73 +11,64 @@ plt.rcParams.update(plt.rcParamsDefault)
 
 
 
-num_nodes = 21
+num_nodes = 3
 aluminum = Material(name='aluminum', E=69E9, G=26E9, rho=2700, v=0.33)
-wing = Beam(name='wing', num_nodes=num_nodes, material=aluminum, cs='ellipse')
-# fuselage = Beam(name='fuselage', num_nodes=num_nodes, material=aluminum, cs='tube')
-boundary_condition_1 = BoundaryCondition(beam=wing, node=10)
-# joint_1 = Joint(beams=[wing, fuselage], nodes=[10, 10])
-eta_M = 0.1
-eta_K = 0.1
+wing = Beam(name='eel', num_nodes=num_nodes, material=aluminum, cs='ellipse')
+boundary_condition_1 = BoundaryCondition(beam=wing, node=1)
+eta_M = 0.
+eta_K = 0.
 
 class ODEFunction(csdl.Model):
 
     def initialize(self):
         self.parameters.declare('num_nodes')
-        # self.parameters.declare('num_beam_nodes')
-        # self.parameters.declare('beam_name')
 
     def define(self):
         num_nodes = self.parameters['num_nodes']
-        num_beam_nodes = 21
-        num_beam_elements = num_beam_nodes - 1
+        num_beam_nodes = 3
         beam_name = 'eel'
-
 
         # states: u and u dot
         u = self.declare_variable('u', shape=(num_nodes, num_beam_nodes * 6))
         udot = self.create_input('u_dot', shape=(num_nodes, num_beam_nodes *  6))
 
-        beam_F_val = self.create_input(beam_name+'_force_torque', shape=(num_nodes, num_beam_nodes *  6))
+        beam_F_val = self.create_input(beam_name+'_force_torque', shape=(num_nodes, num_beam_nodes ,6))
 
         # input to ode: torque as a function of time
-        nodel_force = csdl.reshape(beam_F_val, (num_nodes, num_beam_nodes, 6))[:, :, :3]
-        
-        
+        nodel_force = beam_F_val[:, :, :3]
         self.register_output(beam_name+'_forces',nodel_force)
-        eel_mesh = np.zeros((num_beam_nodes, 3))
-        eel_mesh[:, 1] = np.linspace(-20, 20, num_beam_nodes)
-        self.create_input(beam_name+'_mesh',  val=eel_mesh)
+        self.print_var(beam_F_val)
+        self.print_var(nodel_force)
+
+
+        beam_mesh = self.create_input(beam_name+'_mesh',  shape=(num_beam_nodes, 3))
 
         aluminum = Material(name='aluminum', E=69E9, G=26E9, rho=2700, v=0.33)
         wing = Beam(name=beam_name, num_nodes=num_beam_nodes, material=aluminum, cs='ellipse')
         # fuselage = Beam(name='fuselage', num_nodes=num_nodes, material=aluminum, cs='tube')
-        boundary_condition_1 = BoundaryCondition(beam=wing, node=10)
+        boundary_condition_1 = BoundaryCondition(beam=wing, node=1)
         
-        self.create_input('eel_semi_major_axis', shape=(wing.num_elements), val=0.5)
-        self.create_input('eel_semi_minor_axis', shape=(wing.num_elements), val=0.05)
-        self.add(BeamModel(beams=[wing,],
-                           boundary_conditions=[boundary_condition_1],
-        )) 
 
-        global_mass_matrix = self.declare_variable('global_mass_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
-        global_stiffness_matrix = self.declare_variable('global_stiffness_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
+
+        global_mass_matrix = self.create_input('global_mass_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
+        global_stiffness_matrix = self.create_input('global_stiffness_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
+
+        test_u = csdl.solve(csdl.reshape(global_stiffness_matrix[0,:,:],(18,18)),
+         csdl.reshape(beam_F_val[0,:,:],(18)))
+        # self.print_var(test_u)
         C = eta_M * global_mass_matrix + eta_K * global_stiffness_matrix
-
-
-
+        # self.print_var(global_mass_matrix)
 
         # states time derivative
         self.register_output('du_dt', udot*1.0)
+
         nodel_force_reshape = csdl.reshape(beam_F_val, (num_nodes, num_beam_nodes * 6))
         indices_str = 'ijk,ik->ij'
-        print('shapes')
         u_ddot = self.create_output('dudot_dt', shape=(num_nodes, num_beam_nodes * 6))
 
         for i in range(num_nodes):
-
             MTX = csdl.reshape(global_mass_matrix[i,:,:], (num_beam_nodes * 6, num_beam_nodes * 6))
-            b = nodel_force_reshape[i,:] - csdl.einsum(global_stiffness_matrix, nodel_force_reshape, subscripts=indices_str)[i,:] - csdl.einsum(C, u,  subscripts=indices_str)[i,:]
+            b = nodel_force_reshape[i,:] - csdl.einsum(global_stiffness_matrix, u, subscripts=indices_str)[i,:] - csdl.einsum(C, udot,  subscripts=indices_str)[i,:]
             b_reshaped = csdl.reshape(b, MTX.shape[1])
             u_ddot[i,:] = csdl.reshape(csdl.solve(MTX, b_reshaped), u_ddot.shape)
 
@@ -86,8 +77,8 @@ class ODEFunction(csdl.Model):
 class IntegratorModel(csdl.Model):
 
     def define(self):
-        num_timepoints = 50  # number of time points for integration (includes initial condition)
-        num_beam_nodes = 21  # number of nodes for the beam
+        num_timepoints = 2  # number of time points for integration (includes initial condition)
+        num_beam_nodes = 3  # number of nodes for the beam
         beam_name = 'eel'  # name of the beam
 
         # set initial conditions
@@ -95,43 +86,66 @@ class IntegratorModel(csdl.Model):
         self.create_input('initial_udot', val=np.zeros((num_beam_nodes * 6)))
 
         # set torque as an control input to the pendulum ode for every timepoint
-        beam_F_val = np.zeros((num_timepoints, num_beam_nodes, 6)) 
-        beam_F_val[:, :, :3] = 2000
-        beam_F = self.create_input(beam_name+'_force_torque', val=beam_F_val)
+
 
         # ---VARIABLE TIME---:
         # to specify the ode integration timespan, we give a vector of timesteps.
         # for example, if we want to integrate from 0 ~ 1 seconds with 5 timesteps, we will give
         # np.array([0.2, 0.2, 0.2, 0.2, 0.2]) as the timestep vector.
         # If we set this variable as a design variable, it will automatically change them appropriately.
-        val = np.ones(num_timepoints-1)*0.01
+        val = np.ones(num_timepoints-1)*0.1
         timestep_vector = self.create_input('timestep_vector', val)
         # the final time to minimize is the sum of the timesteps
         self.register_output('final_time', csdl.sum(timestep_vector))
 
         # adding the ODE solver to this model
-        ode = ODEProblem('RK4', 'time-marching', num_timepoints)
+        ode = ODEProblem('ForwardEuler', 'time-marching', num_timepoints)
+        # ode = ODEProblem('RK4', 'time-marching', num_timepoints)
         ode.add_state('u', 'du_dt', output='solved_u', initial_condition_name='initial_u',shape=(num_beam_nodes * 6))
         ode.add_state('u_dot', 'dudot_dt', output='solved_udot', initial_condition_name='initial_udot',shape=(num_beam_nodes * 6))
+        ode.add_parameter(beam_name+'_mesh', dynamic=False, shape=(num_beam_nodes, 3))
         ode.add_parameter(beam_name+'_force_torque', dynamic=True, shape=(num_timepoints, num_beam_nodes, 6))
         ode.add_times(step_vector='timestep_vector')  # here we give the timestep vector
+        ode.add_parameter('global_mass_matrix', dynamic=False, shape=(num_beam_nodes * 6, num_beam_nodes * 6))
+        ode.add_parameter('global_stiffness_matrix', dynamic=False, shape=(num_beam_nodes * 6, num_beam_nodes * 6))
         ode.set_ode_system(ODEFunction, display_scripts=True)  # this is the model containing the ode
+        
         self.add(ode.create_solver_model())
 
 
 
 
 if __name__ == '__main__':
+    num_beam_nodes = 3
+    num_time_steps = 2
+    model = csdl.Model()
+    
+    eel_mesh = np.zeros((num_beam_nodes, 3))
+    eel_mesh[:, 1] = np.linspace(-20, 20, num_beam_nodes)
+    model.create_input('eel_mesh', val=eel_mesh)  
+    model.create_input('eel_semi_major_axis', shape=(wing.num_elements), val=0.5)
+    model.create_input('eel_semi_minor_axis', shape=(wing.num_elements), val=0.05)
+    beam_F_val = np.zeros((num_time_steps, num_beam_nodes, 6)) 
+    beam_F_val[:, :, 2] = 2000
+    beam_F_val[:, 1, 2] = 0 # zero out the middle node for boundary condition
+    beam_F = model.create_input('eel'+'_force_torque', val=beam_F_val)
+    nodel_force = beam_F_val[0, :, :3]
+    model.create_input('eel'+'_forces',nodel_force)    
 
-    sim = python_csdl_backend.Simulator(IntegratorModel())
+    model.add(BeamModel(beams=[wing,],
+                    boundary_conditions=[boundary_condition_1],)) 
+    model.add(IntegratorModel(), name='IntegratorModel')
+
+    sim = python_csdl_backend.Simulator(model)
     sim.run()
 
     undeformed_eel_mesh = sim['eel_mesh']
-    deformed_eel_mesh = sim['eel_deformed_mesh']
+    deformation = sim['solved_u'] 
+    deformed_eel_mesh = undeformed_eel_mesh + deformation.reshape(num_time_steps, num_beam_nodes, 6)[:,:,:3][-1]
 
-    eel_stress = sim['eel_stress']
-    eel_semi_major_axis = sim['eel_semi_major_axis']
-    eel_semi_minor_axis = sim['eel_semi_minor_axis']
+    # eel_stress = sim['eel_stress']
+    # eel_semi_major_axis = sim['eel_semi_major_axis']
+    # eel_semi_minor_axis = sim['eel_semi_minor_axis']
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
@@ -162,10 +176,10 @@ if __name__ == '__main__':
     plt.axis('off')
     plt.show()
 
-    plt.plot(eel_stress)
+    # plt.plot(eel_stress)
     plt.show()
 
-    np.set_printoptions(edgeitems=30, linewidth=100000,)
+    np.set_printoptions(edgeitems=30, linewidth=100000,precision=2,suppress=True)
     print(sim['global_mass_matrix'])
     print(sim['global_stiffness_matrix'].shape)
 
@@ -176,6 +190,8 @@ if __name__ == '__main__':
     M = sim['global_mass_matrix']
     K = sim['global_stiffness_matrix']
     C = eta_M * M + eta_K * K
+
+    u = np.linalg.inv(K)@(sim['eel_force_torque'][0,:,:].reshape(-1))
 
 
 

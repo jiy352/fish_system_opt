@@ -10,11 +10,11 @@ plt.rcParams.update(plt.rcParamsDefault)
 
 
 
-num_nodes = 21
+num_nodes = 3
 aluminum = Material(name='aluminum', E=69E9, G=26E9, rho=2700, v=0.33)
 wing = Beam(name='wing', num_nodes=num_nodes, material=aluminum, cs='ellipse')
 # fuselage = Beam(name='fuselage', num_nodes=num_nodes, material=aluminum, cs='tube')
-boundary_condition_1 = BoundaryCondition(beam=wing, node=10)
+boundary_condition_1 = BoundaryCondition(beam=wing, node=1)
 # joint_1 = Joint(beams=[wing, fuselage], nodes=[10, 10])
 
 class Run(csdl.Model):
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     plt.plot(wing_stress)
     plt.show()
 
-    np.set_printoptions(edgeitems=30, linewidth=100000,)
+    np.set_printoptions(edgeitems=30, linewidth=100000,precision=2,  suppress=True)
     print(sim['global_mass_matrix'])
     print(sim['global_stiffness_matrix'].shape)
 

@@ -22,7 +22,7 @@ class EelGeometryModel(csdl.Model):
         self.parameters.declare('s_1_ind')
         self.parameters.declare('s_2_ind')
         self.parameters.declare('discretization',default='uniform')
-        self.parameters.declare('start_epsilon',default=1e-3)
+        self.parameters.declare('start_epsilon',default=1e-10)
     def define(self):
         surface_name = self.parameters['surface_name']
         surface_shape = self.parameters['surface_shape']
@@ -43,7 +43,7 @@ class EelGeometryModel(csdl.Model):
         start_epsilon = self.parameters['start_epsilon']
 
         L = self.declare_variable('L',val=1.0)
-        a_coeff = self.declare_variable('a_coeff',val=0.55)
+        a_coeff = self.declare_variable('a_coeff',val=0.51)
         b_coeff = self.declare_variable('b_coeff',val=0.08)
 
         a = a_coeff * L
@@ -51,6 +51,9 @@ class EelGeometryModel(csdl.Model):
         L_expand = csdl.expand(L,shape=(num_pts_L,))
         if discretization == 'uniform':
             x = np.linspace(start_epsilon,1,num_pts_L) * L_expand
+        elif discretization == 'cosine':
+            raise NotImplementedError
+
         a_expand = csdl.expand(a,shape=x.shape)
         b_expand = csdl.expand(b,shape=x.shape)
         height = b_expand*(1-((x-a_expand)/a_expand)**2)**0.5

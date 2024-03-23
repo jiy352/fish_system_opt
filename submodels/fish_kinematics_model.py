@@ -39,7 +39,7 @@ class EelKinematicsModel(csdl.Model):
         # self.register_output('time_vector', time_vector)
         time_vector = self.create_input('time_vector', val=time_steps_normalized)
         print('time_vector',time_vector.shape)
-        print('time_steps_normalized',time_steps_normalized.shape)
+        print('time_steps_normalized',time_steps_normalized[1])
 
         L = self.declare_variable('L')        
 
@@ -87,7 +87,6 @@ class EelKinematicsModel(csdl.Model):
         # swimming_fish_mesh[:,:,:,1] = rigid_fish_mesh_expand[:,:,:,1]
         swimming_fish_mesh[:,:,:,2] = rigid_fish_mesh_expand[:,:,:,2]
         # self.register_output(self.surface_name, swimming_fish_mesh)
-        
         
         # lateral velocity is defined as the derivative of the lateral position with respect to time (tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand - time_vector_expand)))
         lateral_velocity = tail_amplitude_expand * amplitude_growth_profile * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
