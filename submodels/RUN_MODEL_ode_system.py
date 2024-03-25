@@ -4,149 +4,133 @@
 
 # system evaluation block
 
-# op _00pA_power_combination_eval
-# LANG: global_mass_matrix --> _00pB
-# SHAPES: (1, 18, 18) --> (1, 18, 18)
+# op _01S2_power_combination_eval
+# LANG: global_mass_matrix --> _01S3
+# SHAPES: (1, 66, 66) --> (1, 66, 66)
 # full namespace: 
-v834__00pB = (v825_global_mass_matrix)
-v834__00pB = (v834__00pB*_00pA_coeff).reshape((1, 18, 18))
+v3799__01S3 = (v3790_global_mass_matrix)
+v3799__01S3 = (v3799__01S3*_01S2_coeff).reshape((1, 66, 66))
 
-# op _00pC_power_combination_eval
-# LANG: global_stiffness_matrix --> _00pD
-# SHAPES: (1, 18, 18) --> (1, 18, 18)
+# op _01S4_power_combination_eval
+# LANG: global_stiffness_matrix --> _01S5
+# SHAPES: (1, 66, 66) --> (1, 66, 66)
 # full namespace: 
-v835__00pD = (v826_global_stiffness_matrix)
-v835__00pD = (v835__00pD*_00pC_coeff).reshape((1, 18, 18))
+v3800__01S5 = (v3791_global_stiffness_matrix)
+v3800__01S5 = (v3800__01S5*_01S4_coeff).reshape((1, 66, 66))
 
-# op _00pE_linear_combination_eval
-# LANG: _00pB, _00pD --> _00pF
-# SHAPES: (1, 18, 18), (1, 18, 18) --> (1, 18, 18)
+# op _01S6_linear_combination_eval
+# LANG: _01S3, _01S5 --> _01S7
+# SHAPES: (1, 66, 66), (1, 66, 66) --> (1, 66, 66)
 # full namespace: 
-v836__00pF = v834__00pB+v835__00pD
+v3801__01S7 = v3799__01S3+v3800__01S5
 
-# op _00pI reshape_eval
-# LANG: eel_force_torque --> _00pJ
-# SHAPES: (1, 3, 6) --> (1, 18)
+# op _01Sa reshape_eval
+# LANG: eel_force_torque --> _01Sb
+# SHAPES: (1, 11, 6) --> (1, 66)
 # full namespace: 
-v838__00pJ = v820_eel_force_torque.reshape((1, 18))
+v3803__01Sb = v3787_eel_force_torque.reshape((1, 66))
 
-# op _00pR einsum_eval
-# LANG: global_stiffness_matrix, u --> _00pS
-# SHAPES: (1, 18, 18), (1, 18) --> (1, 18)
+# op _01Sj einsum_eval
+# LANG: global_stiffness_matrix, u --> _01Sk
+# SHAPES: (1, 66, 66), (1, 66) --> (1, 66)
 # full namespace: 
-v843__00pS = np.einsum('ijk,ik->ij' , v826_global_stiffness_matrix, v818_u)
+v3808__01Sk = np.einsum('ijk,ik->ij' , v3791_global_stiffness_matrix, v3785_u)
 
-# op _00pP_decompose_eval
-# LANG: _00pJ --> _00pQ
-# SHAPES: (1, 18) --> (1, 18)
+# op _01Sh_decompose_eval
+# LANG: _01Sb --> _01Si
+# SHAPES: (1, 66) --> (1, 66)
 # full namespace: 
-v842__00pQ = ((v838__00pJ.flatten())[src_indices__00pQ__00pP]).reshape((1, 18))
+v3807__01Si = ((v3803__01Sb.flatten())[src_indices__01Si__01Sh]).reshape((1, 66))
 
-# op _00pT_decompose_eval
-# LANG: _00pS --> _00pU
-# SHAPES: (1, 18) --> (1, 18)
+# op _01Sl_decompose_eval
+# LANG: _01Sk --> _01Sm
+# SHAPES: (1, 66) --> (1, 66)
 # full namespace: 
-v844__00pU = ((v843__00pS.flatten())[src_indices__00pU__00pT]).reshape((1, 18))
+v3809__01Sm = ((v3808__01Sk.flatten())[src_indices__01Sm__01Sl]).reshape((1, 66))
 
-# op _00pX einsum_eval
-# LANG: _00pF, u_dot --> _00pY
-# SHAPES: (1, 18, 18), (1, 18) --> (1, 18)
+# op _01Sp einsum_eval
+# LANG: _01S7, u_dot --> _01Sq
+# SHAPES: (1, 66, 66), (1, 66) --> (1, 66)
 # full namespace: 
-v846__00pY = np.einsum('ijk,ik->ij' , v836__00pF, v819_u_dot)
+v3811__01Sq = np.einsum('ijk,ik->ij' , v3801__01S7, v3786_u_dot)
 
-# op _00pV_linear_combination_eval
-# LANG: _00pQ, _00pU --> _00pW
-# SHAPES: (1, 18), (1, 18) --> (1, 18)
+# op _01Sn_linear_combination_eval
+# LANG: _01Si, _01Sm --> _01So
+# SHAPES: (1, 66), (1, 66) --> (1, 66)
 # full namespace: 
-v845__00pW = v842__00pQ+-1*v844__00pU
+v3810__01So = v3807__01Si+-1*v3809__01Sm
 
-# op _00pZ_decompose_eval
-# LANG: _00pY --> _00p_
-# SHAPES: (1, 18) --> (1, 18)
+# op _01Sr_decompose_eval
+# LANG: _01Sq --> _01Ss
+# SHAPES: (1, 66) --> (1, 66)
 # full namespace: 
-v847__00p_ = ((v846__00pY.flatten())[src_indices__00p___00pZ]).reshape((1, 18))
+v3812__01Ss = ((v3811__01Sq.flatten())[src_indices__01Ss__01Sr]).reshape((1, 66))
 
-# op _00q0_linear_combination_eval
-# LANG: _00pW, _00p_ --> _00q1
-# SHAPES: (1, 18), (1, 18) --> (1, 18)
+# op _01St_linear_combination_eval
+# LANG: _01So, _01Ss --> _01Su
+# SHAPES: (1, 66), (1, 66) --> (1, 66)
 # full namespace: 
-v848__00q1 = v845__00pW+-1*v847__00p_
+v3813__01Su = v3810__01So+-1*v3812__01Ss
 
-# op _00pL_decompose_eval
-# LANG: global_mass_matrix --> _00pM
-# SHAPES: (1, 18, 18) --> (1, 18, 18)
+# op _01Sd_decompose_eval
+# LANG: global_mass_matrix --> _01Se
+# SHAPES: (1, 66, 66) --> (1, 66, 66)
 # full namespace: 
-v840__00pM = ((v825_global_mass_matrix.flatten())[src_indices__00pM__00pL]).reshape((1, 18, 18))
+v3805__01Se = ((v3790_global_mass_matrix.flatten())[src_indices__01Se__01Sd]).reshape((1, 66, 66))
 
-# op _00q2 reshape_eval
-# LANG: _00q1 --> _00q3
-# SHAPES: (1, 18) --> (18,)
+# op _01Sv reshape_eval
+# LANG: _01Su --> _01Sw
+# SHAPES: (1, 66) --> (66,)
 # full namespace: 
-v849__00q3 = v848__00q1.reshape((18,))
+v3814__01Sw = v3813__01Su.reshape((66,))
 
-# op _00pN reshape_eval
-# LANG: _00pM --> _00pO
-# SHAPES: (1, 18, 18) --> (18, 18)
+# op _01Sf reshape_eval
+# LANG: _01Se --> _01Sg
+# SHAPES: (1, 66, 66) --> (66, 66)
 # full namespace: 
-v841__00pO = v840__00pM.reshape((18, 18))
+v3806__01Sg = v3805__01Se.reshape((66, 66))
 
-# op _00q4 reshape_eval
-# LANG: _00q3 --> _00q5
-# SHAPES: (18,) --> (18, 1)
+# op _01Sx reshape_eval
+# LANG: _01Sw --> _01Sy
+# SHAPES: (66,) --> (66, 1)
 # full namespace: 
-v850__00q5 = v849__00q3.reshape((18, 1))
+v3815__01Sy = v3814__01Sw.reshape((66, 1))
 
-# op _00q6_solve_linear_system_eval
-# LANG: _00pO, _00q5 --> _00q7
-# SHAPES: (18, 18), (18, 1) --> (18, 1)
+# op _01Sz_solve_linear_system_eval
+# LANG: _01Sg, _01Sy --> _01SA
+# SHAPES: (66, 66), (66, 1) --> (66, 1)
 # full namespace: 
-v851__00q7 = _00q6v851__00q7_solver(v841__00pO, v850__00q5, False)
+v3816__01SA = _01Szv3816__01SA_solver(v3806__01Sg, v3815__01Sy, False)
 
-# op _00q8 reshape_eval
-# LANG: _00q7 --> _00q9
-# SHAPES: (18, 1) --> (18,)
+# op _01SB reshape_eval
+# LANG: _01SA --> _01SC
+# SHAPES: (66, 1) --> (66,)
 # full namespace: 
-v852__00q9 = v851__00q7.reshape((18,))
+v3817__01SC = v3816__01SA.reshape((66,))
 
-# op _00pe_decompose_eval
-# LANG: eel_force_torque --> eel_forces, _00pr
-# SHAPES: (1, 3, 6) --> (1, 3, 3), (1, 3, 6)
+# op _01SD reshape_eval
+# LANG: _01SC --> _01SE
+# SHAPES: (66,) --> (1, 66)
 # full namespace: 
-v821_eel_forces = ((v820_eel_force_torque.flatten())[src_indices_eel_forces__00pe]).reshape((1, 3, 3))
-v829__00pr = ((v820_eel_force_torque.flatten())[src_indices__00pr__00pe]).reshape((1, 3, 6))
+v3818__01SE = v3817__01SC.reshape((1, 66))
 
-# op _00qa reshape_eval
-# LANG: _00q9 --> _00qb
-# SHAPES: (18,) --> (1, 18)
+# op _01RL_decompose_eval
+# LANG: eel_force_torque --> eel_forces, _01RU
+# SHAPES: (1, 11, 6) --> (1, 11, 3), (1, 11, 6)
 # full namespace: 
-v853__00qb = v852__00q9.reshape((1, 18))
+v3788_eel_forces = ((v3787_eel_force_torque.flatten())[src_indices_eel_forces__01RL]).reshape((1, 11, 3))
+v3794__01RU = ((v3787_eel_force_torque.flatten())[src_indices__01RU__01RL]).reshape((1, 11, 6))
 
-# op _00pG_power_combination_eval
+# op _01S8_power_combination_eval
 # LANG: u_dot --> du_dt
-# SHAPES: (1, 18) --> (1, 18)
+# SHAPES: (1, 66) --> (1, 66)
 # full namespace: 
-v837_du_dt = (v819_u_dot)
-v837_du_dt = v837_du_dt.reshape((1, 18))
+v3802_du_dt = (v3786_u_dot)
+v3802_du_dt = v3802_du_dt.reshape((1, 66))
 
-# op _00pg_print_var_eval
-# LANG: eel_force_torque --> eel_force_torque_print
-# SHAPES: (1, 3, 6) --> (1, 3, 6)
+# op _01SF_indexed_passthrough_eval
+# LANG: _01SE --> dudot_dt
+# SHAPES: (1, 66) --> (1, 66)
 # full namespace: 
-print()
-print('printing ', 'v820_eel_force_torque (eel_force_torque)')
-print(v820_eel_force_torque)
-
-# op _00pi_print_var_eval
-# LANG: eel_forces --> eel_forces_print
-# SHAPES: (1, 3, 3) --> (1, 3, 3)
-# full namespace: 
-print()
-print('printing ', 'v821_eel_forces (eel_forces)')
-print(v821_eel_forces)
-
-# op _00qc_indexed_passthrough_eval
-# LANG: _00qb --> dudot_dt
-# SHAPES: (1, 18) --> (1, 18)
-# full namespace: 
-v839_dudot_dt__temp[i_v853__00qb__00qc_indexed_passthrough_eval] = v853__00qb.flatten()
-v839_dudot_dt = v839_dudot_dt__temp.copy()
+v3804_dudot_dt__temp[i_v3818__01SE__01SF_indexed_passthrough_eval] = v3818__01SE.flatten()
+v3804_dudot_dt = v3804_dudot_dt__temp.copy()
