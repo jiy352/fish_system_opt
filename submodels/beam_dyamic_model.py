@@ -68,6 +68,7 @@ class IntegratorModel(csdl.Model):
         self.parameters.declare('beam_name')
         self.parameters.declare('eta_M')
         self.parameters.declare('eta_K')
+        self.parameters.declare('dt')
 
 
     def define(self):
@@ -76,6 +77,7 @@ class IntegratorModel(csdl.Model):
         beam_name = self.parameters['beam_name']  # name of the beam
         eta_M = self.parameters['eta_M']
         eta_K = self.parameters['eta_K']
+        dt = self.parameters['dt']
 
         # set initial conditions
         self.create_input('initial_u', val=np.zeros((num_beam_nodes * 6)))
@@ -86,7 +88,7 @@ class IntegratorModel(csdl.Model):
         # for example, if we want to integrate from 0 ~ 1 seconds with 5 timesteps, we will give
         # np.array([0.2, 0.2, 0.2, 0.2, 0.2]) as the timestep vector.
         # If we set this variable as a design variable, it will automatically change them appropriately.
-        val = np.ones(num_time_points-1)*0.5
+        val = np.ones(num_time_points-1)*dt
         timestep_vector = self.create_input('timestep_vector', val)
         # the final time to minimize is the sum of the timesteps
         self.register_output('final_time', csdl.sum(timestep_vector))
