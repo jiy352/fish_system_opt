@@ -10,13 +10,12 @@ from ozone.api import ODEProblem
 plt.rcParams.update(plt.rcParamsDefault)
 
 
-
 num_nodes = 11
 aluminum = Material(name='aluminum', E=69E9, G=26E9, rho=2700, v=0.33)
 wing = Beam(name='eel', num_nodes=num_nodes, material=aluminum, cs='ellipse')
 boundary_condition_1 = BoundaryCondition(beam=wing, node=5)
-eta_M = 0.
-eta_K = 0.
+eta_M = .3
+eta_K = 0.02
 
 class ODEFunction(csdl.Model):
 
@@ -29,7 +28,7 @@ class ODEFunction(csdl.Model):
         beam_name = 'eel'
 
         # states: u and u dot
-        u = self.declare_variable('u', shape=(num_nodes, num_beam_nodes * 6))
+        u = self.create_input('u', shape=(num_nodes, num_beam_nodes * 6))
         udot = self.create_input('u_dot', shape=(num_nodes, num_beam_nodes *  6))
 
         beam_F_val = self.create_input(beam_name+'_force_torque', shape=(num_nodes, num_beam_nodes ,6))
@@ -37,42 +36,30 @@ class ODEFunction(csdl.Model):
         # input to ode: torque as a function of time
         nodel_force = beam_F_val[:, :, :3]
         self.register_output(beam_name+'_forces',nodel_force)
-        # self.print_var(beam_F_val)
-        # self.print_var(nodel_force)
 
 
-        beam_mesh = self.create_input(beam_name+'_mesh',  shape=(num_beam_nodes, 3))
-
-        aluminum = Material(name='aluminum', E=69E9, G=26E9, rho=2700, v=0.33)
-        wing = Beam(name=beam_name, num_nodes=num_beam_nodes, material=aluminum, cs='ellipse')
-        # fuselage = Beam(name='fuselage', num_nodes=num_nodes, material=aluminum, cs='tube')
-        boundary_condition_1 = BoundaryCondition(beam=wing, node=5)
-        
+        beam_mesh = self.create_input(beam_name+'_mesh',  shape=(num_nodes, num_beam_nodes, 3))
 
 
-        global_mass_matrix = self.create_input('global_mass_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
-        global_stiffness_matrix = self.create_input('global_stiffness_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
+        global_mass_matrix = self.declare_variable('global_mass_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
+        global_stiffness_matrix = self.declare_variable('global_stiffness_matrix', shape=(num_nodes, num_beam_nodes * 6, num_beam_nodes * 6))
 
-        test_u = csdl.solve(csdl.reshape(global_stiffness_matrix[0,:,:],(num_beam_nodes*6,num_beam_nodes*6)),
-         csdl.reshape(beam_F_val[0,:,:],(num_beam_nodes*6)))
-        # self.print_var(test_u)
         C = eta_M * global_mass_matrix + eta_K * global_stiffness_matrix
-        # self.print_var(global_mass_matrix)
 
         # states time derivative
+        # first state is the displacement
         self.register_output('du_dt', udot*1.0)
 
         nodel_force_reshape = csdl.reshape(beam_F_val, (num_nodes, num_beam_nodes * 6))
-        indices_str = 'ijk,ik->ij'
+        # second state is the velocity
         u_ddot = self.create_output('dudot_dt', shape=(num_nodes, num_beam_nodes * 6))
 
+        indices_str = 'ijk,ik->ij'
         for i in range(num_nodes):
             MTX = csdl.reshape(global_mass_matrix[i,:,:], (num_beam_nodes * 6, num_beam_nodes * 6))
             b = nodel_force_reshape[i,:] - csdl.einsum(global_stiffness_matrix, u, subscripts=indices_str)[i,:] - csdl.einsum(C, udot,  subscripts=indices_str)[i,:]
             b_reshaped = csdl.reshape(b, MTX.shape[1])
             u_ddot[i,:] = csdl.reshape(csdl.solve(MTX, b_reshaped), u_ddot.shape)
-        # self.print_var(u)
-        # self.print_var(u_ddot)
 
 
 # The parent model containing the optimization problem
@@ -104,6 +91,7 @@ class IntegratorModel(csdl.Model):
         # adding the ODE solver to this model
         # ode = ODEProblem('ForwardEuler', 'time-marching', num_timepoints)
         ode = ODEProblem('BackwardEuler', 'time-marching', num_timepoints)
+        # ode = ODEProblem('ImplicitMidpoint', 'time-marching', num_timepoints)
         # ode = ODEProblem('RK4', 'time-marching', num_timepoints)
         ode.add_state('u', 'du_dt', output='solved_u', initial_condition_name='initial_u',shape=(num_beam_nodes * 6))
         ode.add_state('u_dot', 'dudot_dt', output='solved_udot', initial_condition_name='initial_udot',shape=(num_beam_nodes * 6))
@@ -112,7 +100,7 @@ class IntegratorModel(csdl.Model):
         ode.add_times(step_vector='timestep_vector')  # here we give the timestep vector
         ode.add_parameter('global_mass_matrix', dynamic=False, shape=(num_beam_nodes * 6, num_beam_nodes * 6))
         ode.add_parameter('global_stiffness_matrix', dynamic=False, shape=(num_beam_nodes * 6, num_beam_nodes * 6))
-        ode.set_ode_system(ODEFunction, display_scripts=True)  # this is the model containing the ode
+        ode.set_ode_system(ODEFunction)  # this is the model containing the ode
         
         self.add(ode.create_solver_model())
 
@@ -157,11 +145,6 @@ if __name__ == '__main__':
     # ax.view_init(elev=35, azim=-10)
     # ax.set_box_aspect((1, 2, 1))
 
-    # ax.scatter(undeformed_eel_mesh[:,0], undeformed_eel_mesh[:,1], undeformed_eel_mesh[:,2], color='yellow', edgecolor='black', s=50)
-    # ax.plot(undeformed_eel_mesh[:,0], undeformed_eel_mesh[:,1], undeformed_eel_mesh[:,2])
-    # # fix the aspect ratio
-    # ax.set_box_aspect([np.ptp(deformed_eel_mesh[:,:,0]), np.ptp(deformed_eel_mesh[:,:,1]), np.ptp(deformed_eel_mesh[:,:,2])])
-
 
     def update_graph(num):
         ax.clear()
@@ -183,20 +166,25 @@ if __name__ == '__main__':
         ax.set_ylim(-20, 20)
         ax.set_zlim(-3, 3)
 
-
+    filenames = []
     for i in range(num_time_steps):
         update_graph(i)
         plt.pause(0.1)
         plt.savefig(f'frame_{i}.png', dpi=200)
+        filenames.append(f'frame_{i}.png')
     plt.show()
 
     # make a gif
     import imageio
     with imageio.get_writer('eel.gif', mode='I') as writer:
         for i in range(num_time_steps):
-            image = imageio.imread(f'frame_{i}.png')
+            image = imageio.imread(filenames[i])
             writer.append_data(image)
         
+    # Remove files
+    import os
+    for filename in filenames:
+        os.remove(filename)
 
     
 
@@ -223,8 +211,8 @@ if __name__ == '__main__':
     plt.show()
 
     np.set_printoptions(edgeitems=30, linewidth=100000,precision=10,suppress=True)
-    print(sim['global_mass_matrix'])
-    print(sim['global_stiffness_matrix'].shape)
+    # print(sim['global_mass_matrix'])
+    # print(sim['global_stiffness_matrix'].shape)
 
     #  [𝐶]=𝜂𝑀[𝑀]+𝜂𝐾[𝐾]
 
