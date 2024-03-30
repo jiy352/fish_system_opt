@@ -62,7 +62,7 @@ def run_fish(v_inf):
     #v_x = model.create_input('v_x', val=0.35)
     tail_amplitude = model.create_input('tail_amplitude', val=A)
     tail_frequency = model.create_input('tail_frequency', val=f)
-    wave_length = model.create_input('wave_length', val=lambda_)
+    wave_length = model.create_input('wave', val=lambda_)
     linear_relation = model.create_input('linear_relation', val=0.03125)
     # v_x = model.create_input('v_x', val=0.8467351)
     u = model.register_output('u', csdl.expand(v_x,shape=(num_nodes,1)))
@@ -92,7 +92,7 @@ def run_fish(v_inf):
     model.add(EfficiencyModel(surface_names=surface_names, surface_shapes=ode_surface_shapes,n_ignore=int(num_nodes/N_period)),name='EfficiencyModel')
     # model.add_design_variable('v_x',upper=0.8,lower=0.5)
     model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
-    model.add_design_variable('v_x',upper=0.8,lower=0.8)
+    model.add_design_variable('v_x',upper=0.5,lower=0.5)
     # '''
     if True:
 
@@ -162,34 +162,35 @@ sim = sim_list[0]
 total_fx = np.sum(sim['panel_forces_x'], axis=1)
 thrust = sim['thrust']
 
-exit()
+# exit()
 print('percentage of thrust C_F\n',(-np.average(sim['eel_C_D_i'])-sim['C_F'])* 100/sim['C_F'],'%')
 
-#####################
-# optimizaton
-#####################
-from modopt.csdl_library import CSDLProblem
+if run_optimizaton:
+    #####################
+    # optimizaton
+    #####################
+    from modopt.csdl_library import CSDLProblem
 
-from modopt.snopt_library import SNOPT
-# Define problem for the optimization
-prob = CSDLProblem(
-    problem_name='eel_kinematic_opt_lv',
-    simulator=sim,
-)
-# optimizer = SLSQP(prob, maxiter=1)
-optimizer = SNOPT(
-    prob, 
-    Major_iterations=45,
-    # Major_optimality=1e-6,
-    Major_optimality=1e-7,
-    # Major_feasibility=1e-5,
-    Major_feasibility=1e-4,
-    append2file=True,
-    Major_step_limit=.1,
-)
+    from modopt.snopt_library import SNOPT
+    # Define problem for the optimization
+    prob = CSDLProblem(
+        problem_name='eel_kinematic_opt_lv',
+        simulator=sim,
+    )
+    # optimizer = SLSQP(prob, maxiter=1)
+    optimizer = SNOPT(
+        prob, 
+        Major_iterations=45,
+        # Major_optimality=1e-6,
+        Major_optimality=1e-7,
+        # Major_feasibility=1e-5,
+        Major_feasibility=1e-4,
+        append2file=True,
+        Major_step_limit=.1,
+    )
 
-optimizer.solve()
-optimizer.print_results(summary_table=True)
+    optimizer.solve()
+    optimizer.print_results(summary_table=True)
 # print('total time is', time.time() - t_start)
 
 print('v_x is',sim['v_x'])

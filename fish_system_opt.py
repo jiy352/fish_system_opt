@@ -71,7 +71,7 @@ fish_system_model.create_input('b_coeff', val=0.08)
 #########################################
 fish_system_model.create_input('tail_amplitude',val=0.125)
 fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
-fish_system_model.create_input('wave_length',val=1)
+fish_system_model.create_input('wave_length',val=1.)
 fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
 
 #########################################
@@ -116,12 +116,12 @@ fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='E
 if run_opt == True:
     fish_system_model.add_design_variable('tail_amplitude',upper=0.4,lower=0.05)
     fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.4)
-    fish_system_model.add_design_variable('v_x',upper=0.4,lower=0.4)
-    fish_system_model.add_design_variable('wave_length',upper=2,lower=1)
-    fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
-    fish_system_model.add_design_variable('L',upper=2,lower=0.5)
-    fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
-    fish_system_model.add_design_variable('b_coeff',upper=0.08*1.5,lower=0.08*1)
+    fish_system_model.add_design_variable('v_x',upper=0.5,lower=0.5)
+    # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
+    # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
+    # fish_system_model.add_design_variable('L',upper=2,lower=0.5)
+    # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
+    # fish_system_model.add_design_variable('b_coeff',upper=0.08*1.5,lower=0.08*1)
     # add objective
     fish_system_model.add_objective('efficiency',scaler=-1)
     # add constraint
@@ -160,7 +160,7 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=45,
+        Major_iterations=2,
         # Major_optimality=1e-6,
         Major_optimality=1e-7,
         # Major_feasibility=1e-5,
