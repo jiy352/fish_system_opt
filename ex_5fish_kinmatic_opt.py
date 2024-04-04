@@ -33,7 +33,7 @@ def run_fish(v_inf):
     N_period= 2         
     st = 0.15
     A = 0.125
-    f = 0.48
+    f = 0.48*2
     surface_properties_dict = {'surface_names':['eel'],
                                 'surface_shapes':[(nx, ny, 3)],
                             'frame':'wing_fixed',}
@@ -72,7 +72,7 @@ def run_fish(v_inf):
     surface_shapes = surface_properties_dict['surface_shapes']
     ode_surface_shapes = [(num_nodes, ) + item for item in surface_shapes]
 
-    s_1_ind = 7
+    s_1_ind = 5
     # s_1_ind = 3
     s_2_ind = None
     if s_2_ind==None:
@@ -133,7 +133,7 @@ def run_fish(v_inf):
     return sim
 
 # v_inf = np.array([4.164472e-01])
-v_inf = np.array([0.5])
+v_inf = np.array([0.6])
 
 import matplotlib as mpl
 mpl.rcParams.update(mpl.rcParamsDefault)

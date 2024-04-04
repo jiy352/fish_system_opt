@@ -25,7 +25,7 @@ run_opt = True
 surface_name = 'eel'
 num_pts_L = 51
 num_pts_R = 5
-L = 1.0
+L = 2.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
@@ -110,22 +110,20 @@ fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shap
                                         n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
 fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
 
-
-
 #########################################
 if run_opt == True:
     fish_system_model.add_design_variable('tail_amplitude',upper=0.4,lower=0.05)
-    fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.4)
-    fish_system_model.add_design_variable('v_x',upper=0.5,lower=0.5)
-    # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
-    # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
-    # fish_system_model.add_design_variable('L',upper=2,lower=0.5)
-    # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
-    # fish_system_model.add_design_variable('b_coeff',upper=0.08*1.5,lower=0.08*1)
+    fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.1)
+    fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
+    fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
+    fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
+    fish_system_model.add_design_variable('L',upper=3,lower=0.3)
+    fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
+    fish_system_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
     # add objective
     fish_system_model.add_objective('efficiency',scaler=-1)
     # add constraint
-    #########################################
+    #########################################sim[]
 
     thrust = fish_system_model.declare_variable('thrust',shape=(num_time_steps,1))
     C_F = fish_system_model.declare_variable('C_F')
@@ -160,7 +158,7 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=2,
+        Major_iterations=30,
         # Major_optimality=1e-6,
         Major_optimality=1e-7,
         # Major_feasibility=1e-5,
