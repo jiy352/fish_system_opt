@@ -78,11 +78,16 @@ if __name__ == '__main__':
 
     mtx = get_bspline_mtx(num_cp, num_pt, order)
 
-    height = np.random.rand(num_cp)
+    a = 0.51
+    b = 0.08
 
+
+    height =  b * np.sqrt(1 - ((x - a)/a)**2)
 
     plt.figure()
     plt.plot(x_pts, mtx.toarray()@height, label='interpolated')
-    plt.plot(x, height, label='control points')
+    plt.plot(x, height,'o', label='control points')
     plt.legend()
+    plt.axis('equal')
     plt.show()
+    
