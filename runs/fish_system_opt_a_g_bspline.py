@@ -4,7 +4,7 @@ import csdl
 from python_csdl_backend import Simulator
 # from submodels.fish_geometry_model import EelGeometryModel
 from submodels.fish_geometry_model_bspline import EelGeometryModel
-from submodels.fish_kinematics_model import EelKinematicsModel
+from submodels.fish_kinematics_model_bspline import EelKinematicsModel
 
 from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
@@ -30,7 +30,7 @@ L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
-v_x_val = .65
+v_x_val = .6
 
 num_period = 2
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh
@@ -77,7 +77,11 @@ fish_system_model.create_input('control_points', val=height)
 #########################################
 # inputs to the sub kinematics model
 #########################################
-fish_system_model.create_input('tail_amplitude',val=0.125)
+num_amp_cp = 2
+x_np = np.linspace(0,1, num_amp_cp)
+control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
+fish_system_model.create_input(surface_name+'_amplitude_cp',val=control_points_inital)
+
 fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
 fish_system_model.create_input('wave_length',val=1.)
 fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
@@ -106,7 +110,8 @@ fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
                                             surface_shape=surface_shape,    
                                             num_period=num_period,
-                                            num_time_steps=num_time_steps)
+                                            num_time_steps=num_time_steps,
+                                            num_amp_cp=num_amp_cp)
 fish_system_model.add(eel_kinematics_model, name='EelKinematicsModel')
 
 #########################################
@@ -121,7 +126,7 @@ fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='E
 
 #########################################
 if run_opt == True:
-    fish_system_model.add_design_variable('tail_amplitude',upper=0.4,lower=0.05)
+    fish_system_model.add_design_variable(surface_name+'_amplitude_cp',upper=0.125,lower=0.03)
     fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.1)
     fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
     # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
@@ -205,6 +210,7 @@ print('tail amplitude is',simulator['tail_amplitude'])
 print('tail frequency is',simulator['tail_frequency'])
 print('wave length is',simulator['wave_length'])
 print('control_points are',simulator['control_points'])
+print('tail amplitude cp is',simulator['eel_amplitude_cp'])
 # print('b coeff is',simulator['b_coeff'])
 print('L is',simulator['L'])
 print('amplitude profile coeff is',simulator['amplitude_profile_coeff'])

@@ -9,6 +9,7 @@ plt.rcParams.update(plt.rcParamsDefault)
 
 
 
+
 class ODEFunction(csdl.Model):
 
     def initialize(self):

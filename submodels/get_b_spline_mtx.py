@@ -81,7 +81,6 @@ if __name__ == '__main__':
     a = 0.51
     b = 0.08
 
-
     height =  b * np.sqrt(1 - ((x - a)/a)**2)
 
     plt.figure()

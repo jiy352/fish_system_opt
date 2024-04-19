@@ -19,7 +19,7 @@ from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import 
 # -> [elasticity] -> elastic energy
 # -> [battery sizing]
 # -> [power estimation]->efficiency
-run_opt = True
+run_opt = False
 #########################################
 # solver specific parameters
 #########################################
@@ -29,7 +29,7 @@ num_pts_R = 5
 L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
-tail_frequency_val = 0.48
+tail_frequency_val = 0.475
 v_x_val = .65
 
 num_period = 2
@@ -68,16 +68,16 @@ fish_system_model.create_input('L', val=L)
 # fish_system_model.create_input('b_coeff', val=0.08)
 a = 0.51
 b = 0.08
-num_cp = 5
+num_cp = 8
 x = np.linspace(1e-3, 1, num_cp)
 height =  b * np.sqrt(1 - ((x - a)/a)**2)
-
+height = np.array([[0.005, 0.1151618, 0.12, 0.12, 0.01409148, 0.00747599,0.01076779, 0.12 ]])
 fish_system_model.create_input('control_points', val=height)
 
 #########################################
 # inputs to the sub kinematics model
 #########################################
-fish_system_model.create_input('tail_amplitude',val=0.125)
+fish_system_model.create_input('tail_amplitude',val=0.121)
 fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
 fish_system_model.create_input('wave_length',val=1.)
 fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
@@ -99,7 +99,7 @@ density = fish_system_model.create_input('density',val=np.ones((num_time_steps,1
 eel_geometry_model = EelGeometryModel(surface_name=surface_name,
                                      surface_shape=surface_shape,
                                      num_cp=num_cp,
-                                     s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+                                     s_1_ind=s_1_ind,s_2_ind=s_2_ind,)
 fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 
 # add kinematics model

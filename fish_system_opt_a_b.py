@@ -2,8 +2,7 @@ import numpy as np
 
 import csdl
 from python_csdl_backend import Simulator
-# from submodels.fish_geometry_model import EelGeometryModel
-from submodels.fish_geometry_model_bspline import EelGeometryModel
+from submodels.fish_geometry_model import EelGeometryModel
 from submodels.fish_kinematics_model import EelKinematicsModel
 
 from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
@@ -19,18 +18,18 @@ from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import 
 # -> [elasticity] -> elastic energy
 # -> [battery sizing]
 # -> [power estimation]->efficiency
-run_opt = True
+run_opt = False
 #########################################
 # solver specific parameters
 #########################################
 surface_name = 'eel'
 num_pts_L = 51
 num_pts_R = 5
-L = 1.0
+L = 2.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
-v_x_val = .65
+v_x_val = .5
 
 num_period = 2
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh
@@ -64,15 +63,8 @@ fish_system_model = csdl.Model()
 # inputs to the sub eel_geometry_model
 #########################################
 fish_system_model.create_input('L', val=L)
-# fish_system_model.create_input('a_coeff', val=0.51)
-# fish_system_model.create_input('b_coeff', val=0.08)
-a = 0.51
-b = 0.08
-num_cp = 5
-x = np.linspace(1e-3, 1, num_cp)
-height =  b * np.sqrt(1 - ((x - a)/a)**2)
-
-fish_system_model.create_input('control_points', val=height)
+fish_system_model.create_input('a_coeff', val=0.51)
+fish_system_model.create_input('b_coeff', val=0.08)
 
 #########################################
 # inputs to the sub kinematics model
@@ -98,7 +90,6 @@ density = fish_system_model.create_input('density',val=np.ones((num_time_steps,1
 #########################################
 eel_geometry_model = EelGeometryModel(surface_name=surface_name,
                                      surface_shape=surface_shape,
-                                     num_cp=num_cp,
                                      s_1_ind=s_1_ind,s_2_ind=s_2_ind)
 fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 
@@ -124,13 +115,11 @@ if run_opt == True:
     fish_system_model.add_design_variable('tail_amplitude',upper=0.4,lower=0.05)
     fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.1)
     fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
-    # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
-    # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
-    # fish_system_model.add_design_variable('L',upper=3,lower=0.3)
-    fish_system_model.add_design_variable('control_points',upper=0.12,lower=5e-3)
-    # fish_system_model.add_design_variable('control_points',upper=0.2,lower=1e-3)
-    # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
-    # fish_system_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
+    fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
+    fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
+    fish_system_model.add_design_variable('L',upper=3,lower=0.3)
+    fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
+    fish_system_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
     # add objective
     fish_system_model.add_objective('efficiency',scaler=-1)
     # add constraint
@@ -163,13 +152,13 @@ if run_opt == True:
     from modopt.snopt_library import SNOPT
     # Define problem for the optimization
     prob = CSDLProblem(
-        problem_name='eel_full_system_optimization_bspline',
+        problem_name='eel_full_system_optimization',
         simulator=simulator,
     )
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=50,
+        Major_iterations=30,
         # Major_optimality=1e-6,
         Major_optimality=1e-7,
         # Major_feasibility=1e-5,
@@ -204,8 +193,8 @@ print('v_x is',simulator['v_x'])
 print('tail amplitude is',simulator['tail_amplitude'])
 print('tail frequency is',simulator['tail_frequency'])
 print('wave length is',simulator['wave_length'])
-print('control_points are',simulator['control_points'])
-# print('b coeff is',simulator['b_coeff'])
+print('a coeff is',simulator['a_coeff'])
+print('b coeff is',simulator['b_coeff'])
 print('L is',simulator['L'])
 print('amplitude profile coeff is',simulator['amplitude_profile_coeff'])
 

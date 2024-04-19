@@ -14,6 +14,74 @@
 # discretization: 'uniform' or 'cosine'
 import csdl
 import numpy as np
+import scipy.sparse
+# from get_b_spline_mtx import get_bspline_mtx
+
+def get_bspline_mtx(num_cp, num_pt, order=4):
+    order = min(order, num_cp)
+
+    knots = np.zeros(num_cp + order)
+    knots[order-1:num_cp+1] = np.linspace(0, 1, num_cp - order + 2)
+    knots[num_cp+1:] = 1.0
+
+    t_vec = np.linspace(0, 1, num_pt)
+
+    basis = np.zeros(order)
+    arange = np.arange(order)
+    data = np.zeros((num_pt, order))
+    rows = np.zeros((num_pt, order), int)
+    cols = np.zeros((num_pt, order), int)
+
+    for ipt in range(num_pt):
+        t = t_vec[ipt]
+
+        i0 = -1
+        for ind in range(order, num_cp+1):
+            if (knots[ind-1] <= t) and (t < knots[ind]):
+                i0 = ind - order
+        if t == knots[-1]:
+            i0 = num_cp - order
+
+        basis[:] = 0.
+        basis[-1] = 1.
+
+        for i in range(2, order+1):
+            l = i - 1
+            j1 = order - l
+            j2 = order
+            n = i0 + j1
+            if knots[n+l] != knots[n]:
+                basis[j1-1] = (knots[n+l] - t) / \
+                              (knots[n+l] - knots[n]) * basis[j1]
+            else:
+                basis[j1-1] = 0.
+            for j in range(j1+1, j2):
+                n = i0 + j
+                if knots[n+l-1] != knots[n-1]:
+                    basis[j-1] = (t - knots[n-1]) / \
+                                (knots[n+l-1] - knots[n-1]) * basis[j-1]
+                else:
+                    basis[j-1] = 0.
+                if knots[n+l] != knots[n]:
+                    basis[j-1] += (knots[n+l] - t) / \
+                                  (knots[n+l] - knots[n]) * basis[j]
+            n = i0 + j2
+            if knots[n+l-1] != knots[n-1]:
+                basis[j2-1] = (t - knots[n-1]) / \
+                              (knots[n+l-1] - knots[n-1]) * basis[j2-1]
+            else:
+                basis[j2-1] = 0.
+
+        data[ipt, :] = basis
+        rows[ipt, :] = ipt
+        cols[ipt, :] = i0 + arange
+
+    data, rows, cols = data.flatten(), rows.flatten(), cols.flatten()
+
+    return scipy.sparse.csr_matrix(
+        (data, (rows, cols)), 
+        shape=(num_pt, num_cp),
+    )
 
 class EelKinematicsModel(csdl.Model):
     def initialize(self):
@@ -21,6 +89,7 @@ class EelKinematicsModel(csdl.Model):
         self.parameters.declare('surface_shape') # note this is without number of nodes
         self.parameters.declare('num_period')
         self.parameters.declare('num_time_steps')
+        self.parameters.declare('num_amp_cp')
 
 
     def define(self):
@@ -48,6 +117,7 @@ class EelKinematicsModel(csdl.Model):
 
     def compute_swimming_fish_kinematics(self, L, tail_amplitude, tail_frequency, wave_length, amplitude_profile_coeff, time_vector):
         surface_shape = self.parameters['surface_shape']
+        num_amp_cp = self.parameters['num_amp_cp']
 
         self.num_pts_L = self.parameters['surface_shape'][0]
         self.num_pts_R = self.parameters['surface_shape'][1]
@@ -70,14 +140,22 @@ class EelKinematicsModel(csdl.Model):
         s_expand = rigid_fish_mesh_expand[:,:,:,0]
         # s is defined as the discritization in the length direction
 
-        # check this 1:
         
         amplitude_growth_profile = (s_expand/L_expand + amplitude_profile_coeff_expand) / (1+amplitude_profile_coeff_expand)
+
+        x_np = np.linspace(1e-3,1, num_amp_cp)
+        control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
+
+        amplitude_cp = self.declare_variable(self.surface_name+'_amplitude_cp', val=control_points_inital)
+        amplitude = csdl.matvec(get_bspline_mtx(num_amp_cp, self.num_pts_L, 4), amplitude_cp) 
+        amplitude_expand = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
+        # num_nodes, num_pts_L, num_pts_R, 1
+
         # print('amplitude_growth_profile',amplitude_growth_profile.shape)
         # print('tail_amplitude_expand',tail_amplitude_expand.shape)
         # print('time_vector_expand',time_vector_expand.shape)
 
-        amplitude_along_body = tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
+        amplitude_along_body = amplitude_expand  * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)
         self.register_output(self.surface_name+'_amplitude_growth_profile', amplitude_growth_profile)
 
@@ -134,7 +212,8 @@ if __name__ == '__main__':
     eel_kinematics_model = EelKinematicsModel(surface_name='eel',
                                         surface_shape=surface_shape,
                                         num_period=num_period,
-                                        num_time_steps=num_time_steps)
+                                        num_time_steps=num_time_steps,
+                                        num_amp_cp=5)
     eel_model = csdl.Model()
     eel_model.add(eel_geometry_model, name='EelGeometryModel')
     eel_model.add(eel_kinematics_model, name='EelKinematicsModel')
@@ -143,7 +222,7 @@ if __name__ == '__main__':
     eel_model.create_input('b_coeff', val=0.08)
 
     eel_model.create_input('tail_amplitude',val=0.125)
-    eel_model.create_input('tail_frequency',val=0.7)
+    eel_model.create_input('tail_frequency',val=0.48)
     eel_model.create_input('wave_length',val=1.0)
     eel_model.create_input('amplitude_profile_coeff',val=0.03125)
     
@@ -213,7 +292,7 @@ if __name__ == '__main__':
         ax.quiver(panel_center[:,0], panel_center[:,1], panel_center[:, 2],
                      u, v, w, color='r')
         # change the view angle to x,y plane
-        ax.view_init(90, -90)
+        # ax.view_init(90, -90)
 
 
         plt.draw()

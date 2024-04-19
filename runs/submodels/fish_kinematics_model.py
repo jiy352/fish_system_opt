@@ -143,7 +143,7 @@ if __name__ == '__main__':
     eel_model.create_input('b_coeff', val=0.08)
 
     eel_model.create_input('tail_amplitude',val=0.125)
-    eel_model.create_input('tail_frequency',val=0.7)
+    eel_model.create_input('tail_frequency',val=0.48)
     eel_model.create_input('wave_length',val=1.0)
     eel_model.create_input('amplitude_profile_coeff',val=0.03125)
     
@@ -213,7 +213,7 @@ if __name__ == '__main__':
         ax.quiver(panel_center[:,0], panel_center[:,1], panel_center[:, 2],
                      u, v, w, color='r')
         # change the view angle to x,y plane
-        ax.view_init(90, -90)
+        # ax.view_init(90, -90)
 
 
         plt.draw()

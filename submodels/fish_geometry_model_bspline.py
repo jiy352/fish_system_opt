@@ -14,11 +14,81 @@
 # discretization: 'uniform' or 'cosine'
 import csdl
 import numpy as np
+import scipy.sparse
+# from get_b_spline_mtx import get_bspline_mtx
+
+def get_bspline_mtx(num_cp, num_pt, order=4):
+    order = min(order, num_cp)
+
+    knots = np.zeros(num_cp + order)
+    knots[order-1:num_cp+1] = np.linspace(0, 1, num_cp - order + 2)
+    knots[num_cp+1:] = 1.0
+
+    t_vec = np.linspace(0, 1, num_pt)
+
+    basis = np.zeros(order)
+    arange = np.arange(order)
+    data = np.zeros((num_pt, order))
+    rows = np.zeros((num_pt, order), int)
+    cols = np.zeros((num_pt, order), int)
+
+    for ipt in range(num_pt):
+        t = t_vec[ipt]
+
+        i0 = -1
+        for ind in range(order, num_cp+1):
+            if (knots[ind-1] <= t) and (t < knots[ind]):
+                i0 = ind - order
+        if t == knots[-1]:
+            i0 = num_cp - order
+
+        basis[:] = 0.
+        basis[-1] = 1.
+
+        for i in range(2, order+1):
+            l = i - 1
+            j1 = order - l
+            j2 = order
+            n = i0 + j1
+            if knots[n+l] != knots[n]:
+                basis[j1-1] = (knots[n+l] - t) / \
+                              (knots[n+l] - knots[n]) * basis[j1]
+            else:
+                basis[j1-1] = 0.
+            for j in range(j1+1, j2):
+                n = i0 + j
+                if knots[n+l-1] != knots[n-1]:
+                    basis[j-1] = (t - knots[n-1]) / \
+                                (knots[n+l-1] - knots[n-1]) * basis[j-1]
+                else:
+                    basis[j-1] = 0.
+                if knots[n+l] != knots[n]:
+                    basis[j-1] += (knots[n+l] - t) / \
+                                  (knots[n+l] - knots[n]) * basis[j]
+            n = i0 + j2
+            if knots[n+l-1] != knots[n-1]:
+                basis[j2-1] = (t - knots[n-1]) / \
+                              (knots[n+l-1] - knots[n-1]) * basis[j2-1]
+            else:
+                basis[j2-1] = 0.
+
+        data[ipt, :] = basis
+        rows[ipt, :] = ipt
+        cols[ipt, :] = i0 + arange
+
+    data, rows, cols = data.flatten(), rows.flatten(), cols.flatten()
+
+    return scipy.sparse.csr_matrix(
+        (data, (rows, cols)), 
+        shape=(num_pt, num_cp),
+    )
+
 
 class EelGeometryModel(csdl.Model):
     def initialize(self):
         self.parameters.declare('surface_name')
         self.parameters.declare('surface_shape') # note this is without number of nodes
+        self.parameters.declare('num_cp')
         self.parameters.declare('s_1_ind')
         self.parameters.declare('s_2_ind')
         self.parameters.declare('discretization',default='uniform')
@@ -41,23 +111,32 @@ class EelGeometryModel(csdl.Model):
         num_pts_L = self.parameters['surface_shape'][0]
         num_pts_R = self.parameters['surface_shape'][1]
         start_epsilon = self.parameters['start_epsilon']
+        num_cp = self.parameters['num_cp']
 
         L = self.declare_variable('L',val=1.0)
-        a_coeff = self.declare_variable('a_coeff',val=0.51)
-        b_coeff = self.declare_variable('b_coeff',val=0.08)
 
-        a = a_coeff * L
-        b = b_coeff * L
+
+        a = 0.51
+        b = 0.08
+        x_np = np.linspace(0,1,num_cp)
+        control_points_inital = b * np.sqrt(1 - ((x_np - a)/a)**2)
+
+        control_points = self.declare_variable('control_points',val=control_points_inital)
+        # a_coeff = self.declare_variable('a_coeff',val=0.51)
+        # b_coeff = self.declare_variable('b_coeff',val=0.08)
+
+        # a = a_coeff * L
+        # b = b_coeff * L
         L_expand = csdl.expand(L,shape=(num_pts_L,))
         if discretization == 'uniform':
-            x = np.linspace(start_epsilon,1,num_pts_L) * L_expand
+            x = np.linspace(start_epsilon,1,num_pts_L) * L_expand 
         elif discretization == 'cosine':
             raise NotImplementedError
 
-        a_expand = csdl.expand(a,shape=x.shape)
-        b_expand = csdl.expand(b,shape=x.shape)
-        height = b_expand*(1-((x-a_expand)/a_expand)**2)**0.5
-        # this height is scaling with L right now
+        # a_expand = csdl.expand(a,shape=x.shape)
+        # b_expand = csdl.expand(b,shape=x.shape)
+        height = csdl.matvec(get_bspline_mtx(num_cp, num_pts_L, 4), control_points) * L_expand
+        # the height is scaling with L right now
 
         return x, height
 
@@ -81,7 +160,7 @@ class EelGeometryModel(csdl.Model):
 
 if __name__ == '__main__':
     num_pts_R = 5
-    num_pts_L = 51
+    num_pts_L = 41
     L = 1.0
     s_1_ind = 5
     s_2_ind = num_pts_L-3
@@ -90,11 +169,13 @@ if __name__ == '__main__':
     import python_csdl_backend
     eel_geometry_model = EelGeometryModel(surface_name='eel',
                                         surface_shape=[num_pts_L,num_pts_R, 3],
-                                        s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+                                        s_1_ind=s_1_ind,s_2_ind=s_2_ind,
+                                        num_cp=8,)
 
     eel_geometry_model.create_input('L', val=L)
-    eel_geometry_model.create_input('a_coeff', val=0.51)
-    eel_geometry_model.create_input('b_coeff', val=0.08)
+    # eel_geometry_model.create_input('a_coeff', val=0.55)
+    # eel_geometry_model.create_input('b_coeff', val=0.08)
+    # eel_geometry_model.create_input('control_points', val=np.array([[0.005, 0.10996615, 0.12, 0.12, 0.02146652, 0.005, 0.00671981, 0.12]]))
     simulator = python_csdl_backend.Simulator(eel_geometry_model, display_scripts=False)
     simulator.run()
 
@@ -109,25 +190,11 @@ if __name__ == '__main__':
 
     plt.figure()
     # plt.plot(x, height, '.')
-    # plt.title('Eel Height Profile')
+    plt.axis('equal')
+    plt.title('Eel mesh')
 
     mesh = simulator['eel_rigid_mesh']
-    # add two subplots veritcally
-    plt.subplot(2,1,2)
-    plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-', color='black')
-    plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-', color='black')
-    # add x axis limit
-    # plt.xlim([-0.1,1.1])
-    plt.ylim([-0.15,0.15])
-    plt.tight_layout()
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.subplot(2,1,1)
-    plt.plot(mesh[:,0,0],mesh[:,-1,2]+0., '.-', color='black')
-    plt.ylim([-0.1,0.2])
-    plt.xlabel('x (m)')
-    plt.ylabel('Height (m)')
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.tight_layout()
-    plt.savefig('eel_geometry.pdf', dpi=400)
+    plt.plot(mesh[:,:,0],mesh[:,:,2]+0., 'k.-')
+    plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, 'k.-')
 
     plt.show()
