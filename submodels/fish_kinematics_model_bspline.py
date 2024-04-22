@@ -83,7 +83,7 @@ def get_bspline_mtx(num_cp, num_pt, order=4):
         shape=(num_pt, num_cp),
     )
 
-class EelKinematicsModel(csdl.Model):
+class EelKinematicsMo(csdl.Model):
     def initialize(self):
         self.parameters.declare('surface_name')
         self.parameters.declare('surface_shape') # note this is without number of nodes
@@ -98,10 +98,8 @@ class EelKinematicsModel(csdl.Model):
         num_period = self.parameters['num_period']
         self.num_time_steps = self.parameters['num_time_steps']
 
-        tail_amplitude = self.declare_variable('tail_amplitude')
         tail_frequency = self.declare_variable('tail_frequency')
         wave_length = self.declare_variable('wave_length')
-        amplitude_profile_coeff = self.declare_variable('amplitude_profile_coeff')
 
         time_steps_normalized = np.linspace(0, num_period, self.num_time_steps)
         # time_vector = csdl.expand(tail_frequency, (time_steps_normalized.shape)) * time_steps_normalized
@@ -113,9 +111,9 @@ class EelKinematicsModel(csdl.Model):
         L = self.declare_variable('L')        
 
         # swimming_fish_mesh, swimming_fish_velocsity = self.compute_swimming_fish_kinematics()
-        self.compute_swimming_fish_kinematics(L, tail_amplitude, tail_frequency, wave_length, amplitude_profile_coeff, time_vector)
+        self.compute_swimming_fish_kinematics(L, tail_frequency, wave_length, time_vector)
 
-    def compute_swimming_fish_kinematics(self, L, tail_amplitude, tail_frequency, wave_length, amplitude_profile_coeff, time_vector):
+    def compute_swimming_fish_kinematics(self, L, tail_frequency, wave_length, time_vector):
         surface_shape = self.parameters['surface_shape']
         num_amp_cp = self.parameters['num_amp_cp']
 
@@ -127,8 +125,6 @@ class EelKinematicsModel(csdl.Model):
         # use helper function to expand the variables to the correct shape
 
         L_expand = self.prepare_scaler_variables_to_nnnxny(L)
-        tail_amplitude_expand = self.prepare_scaler_variables_to_nnnxny(tail_amplitude)
-        amplitude_profile_coeff_expand = self.prepare_scaler_variables_to_nnnxny(amplitude_profile_coeff)
         wave_length_expand = self.prepare_scaler_variables_to_nnnxny(wave_length)
         tail_frequency_expand = self.prepare_scaler_variables_to_nnnxny(tail_frequency)
 
@@ -141,7 +137,6 @@ class EelKinematicsModel(csdl.Model):
         # s is defined as the discritization in the length direction
 
         
-        amplitude_growth_profile = (s_expand/L_expand + amplitude_profile_coeff_expand) / (1+amplitude_profile_coeff_expand)
 
         x_np = np.linspace(0,1, num_amp_cp)
         control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
@@ -152,13 +147,10 @@ class EelKinematicsModel(csdl.Model):
         amplitude_expand = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
         # num_nodes, num_pts_L, num_pts_R, 1
 
-        # print('amplitude_growth_profile',amplitude_growth_profile.shape)
-        # print('tail_amplitude_expand',tail_amplitude_expand.shape)
         # print('time_vector_expand',time_vector_expand.shape)
 
         amplitude_along_body = amplitude_expand  * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)
-        self.register_output(self.surface_name+'_amplitude_growth_profile', amplitude_growth_profile)
 
         swimming_fish_mesh = self.create_output(self.surface_name, shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 3))
         swimming_fish_mesh[:,:,:,0] = rigid_fish_mesh_expand[:,:,:,0]
@@ -167,8 +159,7 @@ class EelKinematicsModel(csdl.Model):
         swimming_fish_mesh[:,:,:,2] = rigid_fish_mesh_expand[:,:,:,2]
         # self.register_output(self.surface_name, swimming_fish_mesh)
         
-        # lateral velocity is defined as the derivative of the lateral position with respect to time (tail_amplitude_expand * amplitude_growth_profile * csdl.sin(2*np.pi*(s_expand/L_expand - time_vector_expand)))
-        lateral_velocity = tail_amplitude_expand * amplitude_growth_profile * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
+        lateral_velocity = amplitude_expand  * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         fish_collocation_pts_velocity = self.create_output(self.surface_name+'_coll_vel', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
         fish_collocation_pts_velocity[:,:,:,1] = 0.25*(lateral_velocity[:,:-1,:-1,:]+lateral_velocity[:,:-1,1:,:]+lateral_velocity[:,1:,:-1,:]+lateral_velocity[:,1:,1:,:])
 
@@ -223,7 +214,6 @@ if __name__ == '__main__':
     eel_model.create_input('a_coeff', val=0.55)
     eel_model.create_input('b_coeff', val=0.08)
 
-    eel_model.create_input('tail_amplitude',val=0.125)
     eel_model.create_input('tail_frequency',val=0.48)
     eel_model.create_input('wave_length',val=1.0)
     eel_model.create_input('amplitude_profile_coeff',val=0.03125)

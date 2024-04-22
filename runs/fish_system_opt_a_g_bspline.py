@@ -30,7 +30,7 @@ L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
-v_x_val = .6
+v_x_val = .5
 
 num_period = 2
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh
@@ -77,15 +77,10 @@ fish_system_model.create_input('control_points', val=height)
 #########################################
 # inputs to the sub kinematics model
 #########################################
-num_amp_cp = 2
-x_np = np.linspace(0,1, num_amp_cp)
-control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
-fish_system_model.create_input(surface_name+'_amplitude_cp',val=control_points_inital)
-
 fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
 fish_system_model.create_input('wave_length',val=1.)
-fish_system_model.create_input('amplitude_profile_coeff',val=0.03125)
-
+eel_amplitude_cp_val = np.array([0.03,0.125])
+fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
 #########################################
 # inputs to viscous model
 #########################################
@@ -111,7 +106,7 @@ eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
                                             surface_shape=surface_shape,    
                                             num_period=num_period,
                                             num_time_steps=num_time_steps,
-                                            num_amp_cp=num_amp_cp)
+                                            num_amp_cp=eel_amplitude_cp_val.size)
 fish_system_model.add(eel_kinematics_model, name='EelKinematicsModel')
 
 #########################################
@@ -126,13 +121,13 @@ fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='E
 
 #########################################
 if run_opt == True:
-    fish_system_model.add_design_variable(surface_name+'_amplitude_cp',upper=0.125,lower=0.03)
     fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.1)
     fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
     # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
     # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
     # fish_system_model.add_design_variable('L',upper=3,lower=0.3)
     fish_system_model.add_design_variable('control_points',upper=0.12,lower=5e-3)
+    fish_system_model.add_design_variable('eel_amplitude_cp',upper=0.5,lower=0.03)
     # fish_system_model.add_design_variable('control_points',upper=0.2,lower=1e-3)
     # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
     # fish_system_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
@@ -155,6 +150,9 @@ if run_opt == True:
     #########################################
     fish_system_model.register_output('average_area', avg_area)
     fish_system_model.add_constraint('average_area',equals=0.134)
+    eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
+    fish_system_model.register_output('tail_width', eel_height[-1])
+    fish_system_model.add_constraint('tail_width',lower=0.015)
     #########################################
 
     simulator = Simulator(fish_system_model, display_scripts=False)
@@ -203,17 +201,14 @@ else:
 # exit()
 
 print('################### optimizaton results ######################')
-print('efficiency is',simulator['efficiency'])
+# print('efficiency is',simulator['efficiency'])
 
 print('v_x is',simulator['v_x'])
-print('tail amplitude is',simulator['tail_amplitude'])
 print('tail frequency is',simulator['tail_frequency'])
 print('wave length is',simulator['wave_length'])
 print('control_points are',simulator['control_points'])
-print('tail amplitude cp is',simulator['eel_amplitude_cp'])
 # print('b coeff is',simulator['b_coeff'])
 print('L is',simulator['L'])
-print('amplitude profile coeff is',simulator['amplitude_profile_coeff'])
 
 #########################################
 # plot the fish mesh and the velocity
