@@ -30,7 +30,7 @@ L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
-v_x_val = .5
+v_x_val = .4
 
 num_period = 2
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh
@@ -79,7 +79,7 @@ fish_system_model.create_input('control_points', val=height)
 #########################################
 fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
 fish_system_model.create_input('wave_length',val=1.)
-eel_amplitude_cp_val = np.array([0.03,0.125])
+eel_amplitude_cp_val = np.linspace(0.03, 0.125, num_cp)
 fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
 #########################################
 # inputs to viscous model
@@ -121,13 +121,13 @@ fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='E
 
 #########################################
 if run_opt == True:
-    fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.1)
+    fish_system_model.add_design_variable('tail_frequency',upper=1.,lower=0.1)
     fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
     # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
     # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
     # fish_system_model.add_design_variable('L',upper=3,lower=0.3)
     fish_system_model.add_design_variable('control_points',upper=0.12,lower=5e-3)
-    fish_system_model.add_design_variable('eel_amplitude_cp',upper=0.5,lower=0.03)
+    fish_system_model.add_design_variable('eel_amplitude_cp',upper=0.125,lower=0.03)
     # fish_system_model.add_design_variable('control_points',upper=0.2,lower=1e-3)
     # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
     # fish_system_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
@@ -174,7 +174,8 @@ if run_opt == True:
         prob, 
         Major_iterations=50,
         # Major_optimality=1e-6,
-        Major_optimality=1e-7,
+        Major_optimality=1.4e-7,
+        # Major_optimality=1e-7,
         # Major_feasibility=1e-5,
         Major_feasibility=1e-4,
         append2file=True,
