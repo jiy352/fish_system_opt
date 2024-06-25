@@ -1,0 +1,5 @@
+setup.py
+fish_system_opt.egg-info/PKG-INFO
+fish_system_opt.egg-info/SOURCES.txt
+fish_system_opt.egg-info/dependency_links.txt
+fish_system_opt.egg-info/top_level.txt
