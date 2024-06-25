@@ -30,7 +30,7 @@ L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
 tail_frequency_val = 0.48
-v_x_val = .4
+v_x_val = .6
 
 num_period = 2
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh

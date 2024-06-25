@@ -142,7 +142,7 @@ class EelKinematicsModel(csdl.Model):
         control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
 
         amplitude_cp = self.declare_variable(self.surface_name+'_amplitude_cp', val=control_points_inital)
-        amplitude = csdl.matvec(get_bspline_mtx(num_amp_cp, self.num_pts_L, order=2), amplitude_cp) 
+        amplitude = csdl.matvec(get_bspline_mtx(num_amp_cp, self.num_pts_L, order=3), amplitude_cp) 
         self.register_output('amplitude', amplitude)
         amplitude_expand = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
         # num_nodes, num_pts_L, num_pts_R, 1
@@ -159,7 +159,7 @@ class EelKinematicsModel(csdl.Model):
         swimming_fish_mesh[:,:,:,2] = rigid_fish_mesh_expand[:,:,:,2]
         # self.register_output(self.surface_name, swimming_fish_mesh)
         
-        lateral_velocity = amplitude_expand  * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
+        lateral_velocity = amplitude_expand  * ( -2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
         fish_collocation_pts_velocity = self.create_output(self.surface_name+'_coll_vel', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
         fish_collocation_pts_velocity[:,:,:,1] = 0.25*(lateral_velocity[:,:-1,:-1,:]+lateral_velocity[:,:-1,1:,:]+lateral_velocity[:,1:,:-1,:]+lateral_velocity[:,1:,1:,:])
 

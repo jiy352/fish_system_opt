@@ -178,13 +178,13 @@ else:
     simulator.run()
     # simulator.check_partials(compact_print=True)
     #########################################
-
+fx = np.sum(sim['panel_forces_all'][:,:,0], axis=1)
 # fish_system_model.add(FishHydrodynamicsModel, name='fish_hydrodynamics')
 # fish_system_model.add(FishElasticityModel, name='fish_elasticity')
 # fish_system_model.add(FishBatteryModel, name='fish_battery')
 # fish_system_model.add(FishPowerModel, name='fish_power')
 
-# exit()
+exit()
 
 print('################### optimizaton results ######################')
 print('efficiency is',simulator['efficiency'])

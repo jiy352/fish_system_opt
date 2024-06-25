@@ -19,7 +19,7 @@ from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import 
 # -> [elasticity] -> elastic energy
 # -> [battery sizing]
 # -> [power estimation]->efficiency
-run_opt = True
+run_opt = False
 #########################################
 # solver specific parameters
 #########################################
@@ -118,6 +118,23 @@ fish_system_model.add(UVLMSolver(num_times=num_time_steps,h_stepsize=h_stepsize,
 fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,
                                         n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
 fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
+
+
+thrust = fish_system_model.declare_variable('thrust',shape=(num_time_steps,1))
+C_F = fish_system_model.declare_variable('C_F')
+area = fish_system_model.declare_variable('eel_s_panel',shape=(num_time_steps,int((num_pts_L-1)*(num_pts_R-1))))
+avg_area = csdl.sum(area)/num_time_steps
+avg_C_T = -csdl.sum(thrust)/(0.5*csdl.reshape(density[0,0],(1,))*v_x**2*avg_area)/num_time_steps
+fish_system_model.register_output('avg_C_T', avg_C_T)
+thrust_coeff_avr = (avg_C_T - C_F)**2    
+fish_system_model.print_var(avg_area)
+
+fish_system_model.register_output('thrust_coeff_avr', thrust_coeff_avr)
+fish_system_model.add_constraint('thrust_coeff_avr',equals=0.)
+#########################################
+fish_system_model.register_output('average_area', avg_area)
+fish_system_model.add_constraint('average_area',equals=0.134)
+#########################################
 
 #########################################
 if run_opt == True:

@@ -79,7 +79,7 @@ fish_system_model.create_input('control_points', val=height)
 #########################################
 fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
 fish_system_model.create_input('wave_length',val=1.)
-eel_amplitude_cp_val = np.linspace(0.03, 0.125, num_cp)
+eel_amplitude_cp_val = np.linspace(0.03, 0.125, num_cp-1)
 fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
 #########################################
 # inputs to viscous model
