@@ -20,23 +20,24 @@ from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import 
 # -> [elasticity] -> elastic energy
 # -> [battery sizing]
 # -> [power estimation]->efficiency
-run_opt = True
+run_opt = False
 #########################################
 # solver specific parameters
 #########################################
 surface_name = 'eel'
-num_pts_L = 51
+num_pts_L = 41
 num_pts_R = 5
 L = 1.0
 s_1_ind = 5
 s_2_ind = num_pts_L-3
-tail_frequency_val = 0.4
-v_x_val = .4
+tail_frequency_val = 0.357
+amp_max = 0.07
+v_x_val = 0.5
 
 num_period = 2
 surface_shape = (num_pts_L,num_pts_R, 3) # shape of the fish mesh
 
-num_time_steps = 70
+num_time_steps = 60
 # shape to input to the fish hydrodynamic solver model:
 surface_shapes = [(num_time_steps, num_pts_L, num_pts_R, 3)] 
 surface_properties_dict = {'surface_names':[surface_name],
@@ -83,7 +84,7 @@ fish_system_model.create_input('wave_length',val=1.5)
 eel_amplitude_cp_val  = np.array([0, 1., 0])
 fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
 # fish_system_model.create_input('tail_amplitude', val=0.08)
-fish_system_model.create_input('amplitude_max', val=0.08)
+fish_system_model.create_input('amplitude_max', val=amp_max)
 #########################################
 # inputs to viscous model
 #########################################
@@ -126,16 +127,20 @@ fish_system_model.add(UVLMSolver(num_times=num_time_steps,h_stepsize=h_stepsize,
                                     surface_properties_dict=surface_properties_dict), 'fish_model')
 fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,
                                         n_ignore=int(num_time_steps/num_period)),name='EfficiencyModel')
-fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
+try:
+    fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
+except:
+    fish_system_model.add(EelViscousModel(),name='EelViscousModel')
+
 
 #########################################
-fish_system_model.add_design_variable('tail_frequency',upper=2.,lower=0.2)
+fish_system_model.add_design_variable('tail_frequency',upper=0.5,lower=0.2)
 # fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
 # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
 # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
 # fish_system_model.add_design_variable('L',upper=3,lower=0.3)
 # fish_system_model.add_design_variable('control_points',upper=0.12,lower=5e-3)
-fish_system_model.add_design_variable('amplitude_max',upper=1.,lower=0.3)
+fish_system_model.add_design_variable('amplitude_max',upper=.3,lower=0.04)
 # fish_system_model.add_design_variable('eel_amplitude_cp',upper=1,lower=0.0001)
 # fish_system_model.add_design_variable('control_points',upper=0.2,lower=1e-3)
 # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
@@ -145,11 +150,11 @@ fish_system_model.add_objective('efficiency',scaler=-1)
 # add constraint
 #########################################sim[]
 
-thrust = fish_system_model.declare_variable('thrust',shape=(num_time_steps,1))
+thrust = fish_system_model.declare_variable('thrust',shape=(num_time_steps,1))[int(num_time_steps/num_period):,:]
 C_F = fish_system_model.declare_variable('C_F')
 area = fish_system_model.declare_variable('eel_s_panel',shape=(num_time_steps,int((num_pts_L-1)*(num_pts_R-1))))
 avg_area = csdl.sum(area)/num_time_steps
-avg_C_T = -csdl.sum(thrust)/(0.5*csdl.reshape(density[0,0],(1,))*v_x**2*avg_area)/num_time_steps
+avg_C_T = -csdl.sum(thrust)/(0.5*csdl.reshape(density[0,0],(1,))*v_x**2*avg_area)/(num_time_steps-int(num_time_steps/num_period))
 fish_system_model.register_output('avg_C_T', avg_C_T)
 thrust_coeff_avr = (avg_C_T - C_F)**2    
 fish_system_model.print_var(avg_area)
@@ -158,10 +163,10 @@ fish_system_model.register_output('thrust_coeff_avr', thrust_coeff_avr)
 fish_system_model.add_constraint('thrust_coeff_avr',equals=0.)
 #########################################
 fish_system_model.register_output('average_area', avg_area)
-fish_system_model.add_constraint('average_area',equals=0.134)
+# fish_system_model.add_constraint('average_area',equals=0.134)
 eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
 fish_system_model.register_output('tail_width', eel_height[-1])
-fish_system_model.add_constraint('tail_width',lower=0.015)
+# fish_system_model.add_constraint('tail_width',lower=0.015)
 #########################################
 
 
@@ -184,11 +189,11 @@ if run_opt == True:
     optimizer = SNOPT(
         prob, 
         Major_iterations=25,
-        Major_optimality=5e-6,
+        Major_optimality=5e-7,
         # Major_optimality=1.4e-7,
         # Major_optimality=1e-7,
         # Major_feasibility=1e-5,
-        Major_feasibility=1e-4,
+        Major_feasibility=1e-8,
         append2file=True,
         Major_step_limit=.1,
     )
@@ -219,7 +224,7 @@ print('v_x is',simulator['v_x'])
 print('tail frequency is',simulator['tail_frequency'])
 print('wave length is',simulator['wave_length'])
 print('control_points are',simulator['control_points'])
-# print('b coeff is',simulator['b_coeff'])
+print('amplitude_max is',simulator["amplitude_max"])
 print('L is',simulator['L'])
 
 #########################################
