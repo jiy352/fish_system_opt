@@ -105,8 +105,8 @@ class EelKinematicsModel(csdl.Model):
         # time_vector = csdl.expand(tail_frequency, (time_steps_normalized.shape)) * time_steps_normalized
         # self.register_output('time_vector', time_vector)
         time_vector = self.create_input('time_vector', val=time_steps_normalized)
-        print('time_vector',time_vector.shape)
-        print('time_steps_normalized',time_steps_normalized[1])
+        # print('time_vector',time_vector.shape)
+        # print('time_steps_normalized',time_steps_normalized[1])
 
         L = self.declare_variable('L')        
 

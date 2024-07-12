@@ -25,7 +25,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import time
 plt.rcParams['text.usetex'] = False
 
-def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_val, amp_max, num_period, run_opt=False):
+def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_val, amp_max, num_period, run_opt=False, del_sim=False):
     #########################################
     # solver specific parameters
     #########################################
@@ -139,13 +139,13 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
 
 
     #########################################
-    fish_system_model.add_design_variable('tail_frequency',upper=1.,lower=0.2)
+    fish_system_model.add_design_variable('tail_frequency',upper=1.5,lower=0.4)
     # fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
     # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
     # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
     # fish_system_model.add_design_variable('L',upper=3,lower=0.3)
     # fish_system_model.add_design_variable('control_points',upper=0.12,lower=5e-3)
-    fish_system_model.add_design_variable('amplitude_max',upper=.3,lower=0.04)
+    fish_system_model.add_design_variable('amplitude_max',upper=.3,lower=0.03)
     # fish_system_model.add_design_variable('eel_amplitude_cp',upper=1,lower=0.0001)
     # fish_system_model.add_design_variable('control_points',upper=0.2,lower=1e-3)
     # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
@@ -220,23 +220,89 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     avg_C_T = simulator['avg_C_T']
     print('the average C_T is',simulator['avg_C_T'])
 
+
     if run_opt == True:
         return thrust, avg_C_T, simulator
-    del simulator
+    else:
+        if del_sim == True:
+            del simulator
 
-    return thrust, avg_C_T
+            return thrust, avg_C_T, efficiency
+        else:
+            return thrust, avg_C_T, simulator
 
 num_pts_L_list = [11, 21, 31, 41, 51, 61]
 num_pts_R_list = [3, 5, 7, 9, 11]
 num_time_steps_list = [30, 40, 50, 60, 70, 80, 90]
 
 # thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=60,
-#              v_x_val=0.5, tail_frequency_val=0.7, amp_max=0.1, 
+#              v_x_val=0.8, tail_frequency_val=0.8678, amp_max=0.1, 
 #              num_period=2, run_opt=True)
 
 thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=60,
-             v_x_val=0.4, tail_frequency_val=0.57025602, amp_max=0.09494868, 
-             num_period=2, run_opt=True)
+             v_x_val=0.8, tail_frequency_val=0.96719881, amp_max=0.0572962459 ,
+             num_period=2, run_opt=False)
+print('CF is',simulator["C_F"])
+exit()
+tail_frequency_val_list = np.array([0.33, 0.67, 1, 1.33, 1.67, 2])*0.8678
+amp_max_list =  np.array([0.33, 0.67, 1, 1.33, 1.67, 2]) * 0.1
+thrust_list = np.zeros((len(tail_frequency_val_list)*len(amp_max_list),70))
+avg_C_T_list = np.zeros((len(tail_frequency_val_list)*len(amp_max_list)))
+effi_list = np.zeros((len(tail_frequency_val_list)*len(amp_max_list)))
+i=0
+for tail_frequency_val in tail_frequency_val_list:
+    for amp_max in amp_max_list:
+        thrust, avg_C_T, efficiency = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
+             v_x_val=0.8, tail_frequency_val=tail_frequency_val, amp_max=amp_max, 
+             num_period=2, run_opt=False,del_sim=True)
+    
+        thrust_list[i,:] = thrust.reshape(-1)
+        avg_C_T_list[i] = avg_C_T
+        effi_list[i] = efficiency
+        i+=1
+exit()
+
+Y, X = np.meshgrid(amp_max_list, tail_frequency_val_list)
+Z = avg_C_T_list.reshape(len(tail_frequency_val_list), len(amp_max_list))
+
+# Plotting the heatmap/contour plot
+plt.figure(figsize=(10, 8))
+contourf = plt.contourf(X, Y, Z, cmap='viridis', levels=20)
+contours = plt.contour(X, Y, Z, levels=[0.002328746102235173], colors='red')  # Example: extract the contour at level 0.0
+
+# Extracting the paths for the specific contour line
+paths = contours.collections[0].get_paths()
+
+# Extracting the X and Y coordinates from the paths
+for path in paths:
+    v = path.vertices
+    x = v[:, 0]
+    y = v[:, 1]
+    print("X coordinates:", x)
+    print("Y coordinates:", y)
+
+plt.clabel(contours, fmt='%1.4f', colors='red')  # Label the contour lines
+plt.colorbar(contourf)
+plt.title('Average Thrust Coefficient Contour Plot')
+plt.plot(x, y, 'b.')  # Plot the specific contour line
+plt.xlabel('Tail Frequency')
+plt.ylabel('Amplitude Max')
+# plt.show()
+
+Z = effi_list.reshape(len(tail_frequency_val_list), len(amp_max_list))
+
+# Plotting the heatmap/contour plot
+plt.figure(figsize=(10, 8))
+contourf = plt.contourf(X, Y, Z, cmap='viridis', levels=60)
+contours = plt.contour(X, Y, Z, levels=[0.6,0.7,0.75,0.8,0.825,0.85], colors='red')  # Example: extract the contour at level 0.0
+plt.clabel(contours, fmt='%1.4f', colors='red')  # Label the contour lines
+plt.colorbar(contourf)
+plt.title('Average Thrust Coefficient Contour Plot')
+plt.plot(x, y, 'b.-')  # Plot the specific contour line
+plt.xlabel('Tail Frequency')
+plt.ylabel('Amplitude Max')
+plt.show()
+
 
 # # convergence over num_pts_L
 # thrust_list = np.zeros((len(num_pts_L_list),60))
