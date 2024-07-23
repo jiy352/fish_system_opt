@@ -83,6 +83,11 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # inputs to the sub kinematics model
     #########################################
     tail_frequency_csdl = fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
+
+    #########################################
+    # inputs to the sub kinematics model
+    #########################################
+    tail_frequency_csdl = fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
     # TODO: check if this work, also for how v_x is given to the hydrodynamic model
     h_stepsize = num_period/ tail_frequency_csdl / (num_time_steps-1)
 
@@ -94,10 +99,10 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     ########################################
     h_vec = csdl.expand(h_stepsize,shape=(num_time_steps-1,1))
     h = fish_system_model.register_output('h', h_vec)
-
+    #########################################    
     fish_system_model.create_input('wave_length',val=1.)
     eel_amplitude_cp_val  = np.array([0, 1., 0])
-    fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
+    eel_amplitude_cp_csdl = fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
     # fish_system_model.create_input('tail_amplitude', val=0.08)
     fish_system_model.create_input('amplitude_max', val=amp_max)
     #########################################
@@ -114,35 +119,29 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # add geometry and kinematics model
     # generate initial rigid fish mesh
     #########################################
-    # eel_geometry_model = EelGeometryModel(surface_name=surface_name,
-    #                                     surface_shape=surface_shape,
-    #                                     num_cp=num_cp,
-    #                                     s_1_ind=s_1_ind,s_2_ind=s_2_ind)
-    # fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
+    eel_geometry_model = EelGeometryModel(surface_name=surface_name,
+                                        surface_shape=surface_shape,
+                                        num_cp=num_cp,
+                                        s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+    fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 
     # # add kinematics model
-    # eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
-    #                                             surface_shape=surface_shape,    
-    #                                             num_period=num_period,
-    #                                             num_time_steps=num_time_steps,
-    #                                             num_amp_cp=eel_amplitude_cp_val.size)
+    eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
+                                                surface_shape=surface_shape,    
+                                                num_period=num_period,
+                                                num_time_steps=num_time_steps,
+                                                num_amp_cp=eel_amplitude_cp_val.size)
 
     # add kinematics model
     # eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
     #                                             surface_shape=surface_shape,    
     #                                             num_period=num_period,
     #                                             num_time_steps=num_time_steps)                                          
-    # fish_system_model.add(eel_kinematics_model, name='EelKinematicsModel')
-
-    fish_system_model.create_input('eel', val=np.load('eel.npy'))
-    fish_system_model.create_input('eel_coll_vel', val=np.load('eel_vel.npy'))
+    fish_system_model.add(eel_kinematics_model, name='EelKinematicsModel')
 
     #########################################
     # add hydrodynamics model
     #########################################
-
-    # fish_system_model.add(UVLMSolver(num_times=num_time_steps,h_stepsize=h_stepsize,states_dict=states_dict,
-    #                                     surface_properties_dict=surface_properties_dict), 'fish_model')
 
     fish_system_model.add(UVLMSolver(num_times=num_time_steps,states_dict=states_dict,
                                         surface_properties_dict=surface_properties_dict), 'fish_model')
@@ -155,14 +154,16 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
 
 
     #########################################
-    fish_system_model.add_design_variable('tail_frequency',upper=1.5,lower=0.4)
+    fish_system_model.add_design_variable('tail_frequency',upper=3,lower=0.4)
     # fish_system_model.add_design_variable('v_x',upper=v_x_val,lower=v_x_val)
     # fish_system_model.add_design_variable('wave_length',upper=2,lower=0.5)
     # fish_system_model.add_design_variable('amplitude_profile_coeff',upper=0.03125*3,lower=0.03125*0.5)
     # fish_system_model.add_design_variable('L',upper=3,lower=0.3)
     # fish_system_model.add_design_variable('control_points',upper=0.12,lower=5e-3)
     fish_system_model.add_design_variable('amplitude_max',upper=.3,lower=0.03)
-    # fish_system_model.add_design_variable('eel_amplitude_cp',upper=1,lower=0.0001)
+    eel_amplitude_cp_csdl_first_two = eel_amplitude_cp_csdl[0:2]
+    fish_system_model.register_output('eel_amplitude_cp_first_two', eel_amplitude_cp_csdl_first_two)
+    fish_system_model.add_design_variable('eel_amplitude_cp',upper=1,lower=0.00001)
     # fish_system_model.add_design_variable('control_points',upper=0.2,lower=1e-3)
     # fish_system_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
     # fish_system_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
@@ -189,6 +190,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
     fish_system_model.register_output('tail_width', eel_height[-1])
     # fish_system_model.add_constraint('tail_width',lower=0.015)
+
+    fish_system_model.register_output('amp_sum' , csdl.sum(eel_amplitude_cp_csdl_first_two))
+    fish_system_model.add_constraint('amp_sum',equals=1.0)
     #########################################
 
 
@@ -251,13 +255,17 @@ num_pts_L_list = [11, 21, 31, 41, 51, 61]
 num_pts_R_list = [3, 5, 7, 9, 11]
 num_time_steps_list = [30, 40, 50, 60, 70, 80, 90]
 
-# thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=60,
-#              v_x_val=0.8, tail_frequency_val=0.8678, amp_max=0.1, 
-#              num_period=2, run_opt=True)
+thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
+             v_x_val=0.8, tail_frequency_val=0.8678, amp_max=0.1, 
+             num_period=2, run_opt=True)
 
-thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=60,
-             v_x_val=0.8, tail_frequency_val=0.96719881, amp_max=0.0572962459 ,
-             num_period=2, run_opt=False)
+            #  v_x_val=1.5, tail_frequency_val=1.622, amp_max=0.15, 
+
+            #  v_x_val=0.8, tail_frequency_val=0.8678, amp_max=0.1, 
+
+# thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=60,
+#              v_x_val=0.8, tail_frequency_val=0.96719881, amp_max=0.0572962459 ,
+#              num_period=2, run_opt=False)
 print('CF is',simulator["C_F"])
 exit()
 tail_frequency_val_list = np.array([0.33, 0.67, 1, 1.33, 1.67, 2])*0.8678
