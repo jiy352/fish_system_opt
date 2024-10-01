@@ -151,7 +151,9 @@ class EelKinematicsModel(csdl.Model):
         amplitude_max = self.declare_variable('amplitude_max')
         amplitude_max_expand = csdl.expand(amplitude_max,shape=(s.shape))   
         # print('coeff_05s_expand',coeff_05s_expand.shape)
-        amplitude = amplitude_max_expand*(coeff_05s_expand* s**0.5 + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
+        '''CHANGE 0926/2024 change the kinematics to mimic carangform'''
+        # amplitude = amplitude_max_expand*(coeff_05s_expand* s**0.5 + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
+        amplitude = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
         self.register_output('amplitude', amplitude)
         amplitude_expand = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
         # num_nodes, num_pts_L, num_pts_R, 1
