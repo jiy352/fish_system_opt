@@ -144,16 +144,25 @@ class EelKinematicsModel(csdl.Model):
         coeff_05s = amplitude_cp[0]
         coeff_s = amplitude_cp[1]
         coeff_2s = amplitude_cp[2]
-        print('coeff_05s',coeff_05s.shape)
+        # CHANGE Oct 12 2024, change the kinematics to mimic switch between carangiform and anguilliform
+        coeff_exp = amplitude_cp[3]
+
+        # print('coeff_05s',coeff_05s.shape)
         coeff_05s_expand = csdl.expand(coeff_05s,shape=(s.shape))
         coeff_s_expand = csdl.expand(coeff_s,shape=(s.shape))
         coeff_2s_expand = csdl.expand(coeff_2s,shape=(s.shape))
+        coeff_exp_expand = csdl.expand(coeff_exp,shape=(s.shape))
+
         amplitude_max = self.declare_variable('amplitude_max')
         amplitude_max_expand = csdl.expand(amplitude_max,shape=(s.shape))   
         # print('coeff_05s_expand',coeff_05s_expand.shape)
         '''CHANGE 0926/2024 change the kinematics to mimic carangform'''
         # amplitude = amplitude_max_expand*(coeff_05s_expand* s**0.5 + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
-        amplitude = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
+        # amplitude = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
+        amplitude_carang = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
+        amplitude_angui = amplitude_max_expand*(csdl.exp(s-1.))
+        amplitude = amplitude_carang * (1-coeff_exp_expand) + amplitude_angui * coeff_exp_expand
+
         self.register_output('amplitude', amplitude)
         amplitude_expand = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
         # num_nodes, num_pts_L, num_pts_R, 1
@@ -194,7 +203,8 @@ if __name__ == '__main__':
     s_2_ind = num_pts_L-3
     num_time_steps = 50
     num_period = 2
-    num_amp_cp = 3
+    num_amp_cp = 4
+
     surface_shape = (num_pts_L,num_pts_R, 3)
 
     def axis_equal(ax, x, y, z):
@@ -226,11 +236,11 @@ if __name__ == '__main__':
     eel_model.create_input('L', val=L)
     eel_model.create_input('a_coeff', val=0.55)
     eel_model.create_input('b_coeff', val=0.08)
-    coeffs = np.array([1, 0, 0])
+    coeffs = np.array([0.02, -0.08, 0.16, 1])
 
     eel_model.create_input('tail_frequency',val=0.48)
     eel_model.create_input('wave_length',val=1.0)
-    eel_model.create_input('amplitude_max',val=0.3)
+    eel_model.create_input('amplitude_max',val=0.1)
     eel_model.create_input('eel_amplitude_cp',val=coeffs)
     
 
@@ -245,7 +255,7 @@ if __name__ == '__main__':
     plt.plot(diff/dt)
     plt.plot(simulator['eel_lateral_velocity'][:,20,1].flatten())
 
-    exit()
+    # exit()
 
     # simulator.check_partials(compact_print=True)
 
@@ -277,8 +287,6 @@ if __name__ == '__main__':
     plt.ion()  # Turn on interactive mode
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-
-    
 
    
     filenames = []

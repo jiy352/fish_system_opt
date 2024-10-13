@@ -79,7 +79,7 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     h = fish_system_model.register_output('h', h_vec)
     #########################################    
     fish_system_model.create_input('wave_length',val=0.95)
-    eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16, 0])
+    eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16])
     fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
     fish_system_model.create_input('amplitude_max', val=amp_max)
 
@@ -98,9 +98,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # generate initial rigid fish mesh
     #########################################
     eel_geometry_model = EelGeometryModel(surface_name=surface_name,
-                                            surface_shape=surface_shape,
-                                            num_cp=num_cp,
-                                            s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+                                        surface_shape=surface_shape,
+                                        num_cp=num_cp,
+                                        s_1_ind=s_1_ind,s_2_ind=s_2_ind)
     fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 
     # # add kinematics model
@@ -214,8 +214,8 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
 #              v_x_val=1., tail_frequency_val=1.135, amp_max=0.13, 
 #              num_period=2, run_opt=True)
 
-run_opt = False
-v_x_val = 1.
+run_opt = True
+v_x_val = 1.5
 num_time_steps=70
 
 if v_x_val == .2:
@@ -253,16 +253,14 @@ elif v_x_val == 1.:
                 #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
                 num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
 
-panel_forces = simulator['panel_forces_all']
-total_forces = np.sum(panel_forces,axis=1)
-total_forces_x = total_forces[:,0]
-total_forces_y = total_forces[:,1]
-# total_forces_z = total_forces[:,2]
 
-plt.figure()
-plt.plot(total_forces_x[2:])
-plt.plot(total_forces_y[2:])
-plt.show()
+elif v_x_val == 1.5:
+    problem_name = 'kin_opt_0930_can_15'
+    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
+                v_x_val=v_x_val, tail_frequency_val=2.2, amp_max=0.0300627300556591, 
+                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
+                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
+
 
 if run_opt == True:
     case_name = '_'+problem_name+'.txt'

@@ -4,9 +4,10 @@ import csdl
 from python_csdl_backend import Simulator
 from fish_system_opt.submodels.fish_geometry_model_bspline import EelGeometryModel
 from fish_system_opt.submodels.fish_kinematics_model_poly import EelKinematicsModel
+from fish_system_opt.submodels.com_model import CoMModel
 # from fish_system_opt.submodels.fish_kinematics_model import EelKinematicsModel
 
-from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
+from VAST.core.submodels.friction_submodels.eel_viscous_force_3x import EelViscousModel
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
 from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import EfficiencyModel
 
@@ -15,7 +16,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import time
 plt.rcParams['text.usetex'] = False
 
-def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_val, amp_max, num_period, run_opt=False, del_sim=False,problem_name='kin_opt',lower=0.1):
+def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_val, amp_max, num_period, run_opt=False, del_sim=False,problem_name='kin_opt'):
     #########################################
     # solver specific parameters
     #########################################
@@ -52,9 +53,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     fish_system_model.create_input('L', val=L)
     a = 0.51
     b = 0.08
-    num_cp = 5
+    num_cp = 4
     x = np.linspace(1e-3, 1, num_cp)
-    height =  b * np.sqrt(1 - ((x - a)/a)**2)
+    height =  b * np.sqrt(1 - ((x - a)/a)**2)  # initial height of the fish
     fish_system_model.create_input('control_points', val=height)
 
     #########################################
@@ -98,10 +99,15 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # generate initial rigid fish mesh
     #########################################
     eel_geometry_model = EelGeometryModel(surface_name=surface_name,
-                                            surface_shape=surface_shape,
-                                            num_cp=num_cp,
-                                            s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+                                        surface_shape=surface_shape,
+                                        num_cp=num_cp,
+                                        s_1_ind=s_1_ind,s_2_ind=s_2_ind)
     fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
+
+    #########################################
+    # add CoM model
+    #########################################
+    fish_system_model.add(CoMModel(surface_names=[surface_name], surface_shapes=[surface_shape]), 'CoMModel')
 
     # # add kinematics model
     eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
@@ -125,11 +131,13 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
         fish_system_model.add(EelViscousModel(),name='EelViscousModel')
 
     ##############################################
-    
-    fish_system_model.add_design_variable('tail_frequency',upper=lower*10,lower=lower*3)
-    fish_system_model.add_design_variable('amplitude_max',upper=lower*1,lower=lower*0.05)
+    lower = 0.2
+    fish_system_model.add_design_variable('tail_frequency',upper=lower*8,lower=lower)
+    fish_system_model.add_design_variable('amplitude_max',upper=lower*7,lower=lower*0.1)
+    fish_system_model.add_design_variable('control_points',upper=0.2,lower=0.03)
     # add objective
-    fish_system_model.add_objective('panel_total_power',scaler=1.)
+    # fish_system_model.add_objective('panel_total_power',scaler=1)
+    fish_system_model.add_objective('efficiency',scaler=-1)
     # add constraint
     ##############################################
     np_ignore  = 1
@@ -143,14 +151,19 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     thrust_coeff_avr = (avg_C_T - C_F)**2    
     fish_system_model.print_var(thrust_coeff_avr)
 
+    com_x = fish_system_model.declare_variable('eel_CoM_x')*1.
+
     fish_system_model.register_output('thrust_coeff_avr', thrust_coeff_avr)
     fish_system_model.add_constraint('thrust_coeff_avr',equals=0.,scaler=1e2)
+    fish_system_model.add_constraint('eel_CoM_x',upper=0.55,lower=0.45)
     #########################################
     fish_system_model.register_output('average_area', avg_area)
-    # fish_system_model.add_constraint('average_area',equals=0.134)
+    fish_system_model.add_constraint('average_area',equals=0.13907782)
     eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
     fish_system_model.register_output('tail_width', eel_height[-1])
     #########################################
+    efficiency = fish_system_model.declare_variable('efficiency')
+    fish_system_model.print_var(efficiency)
 
     if run_opt == True:
         simulator = Simulator(fish_system_model, display_scripts=False)
@@ -169,7 +182,7 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
         # optimizer = SLSQP(prob, maxiter=1)
         optimizer = SNOPT(
             prob, 
-            Major_iterations=40,
+            Major_iterations=120,
             Major_optimality=1e-7,
             Major_feasibility=1e-7,
             append2file=True,
@@ -214,55 +227,21 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
 #              v_x_val=1., tail_frequency_val=1.135, amp_max=0.13, 
 #              num_period=2, run_opt=True)
 
-run_opt = False
-v_x_val = 1.
-num_time_steps=70
+run_opt = True
+v_x_val = .5
+num_time_steps = 70
+problem_name = 'geo_opt_1011_can_05_new'
+# thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
+#              v_x_val=v_x_val, tail_frequency_val=.425 , amp_max=0.08, 
+#             #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
+#              num_period=2, run_opt=run_opt,problem_name=problem_name)
+# 0.4
+thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=num_time_steps,
+             v_x_val=v_x_val, tail_frequency_val=0.70971, amp_max=0.08, 
+            #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
+             num_period=2, run_opt=run_opt,problem_name=problem_name)
 
-if v_x_val == .2:
-    problem_name = 'kin_opt_0930_can_02'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                 v_x_val=v_x_val, tail_frequency_val=.258, amp_max=0.08, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                 num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.1)
 
-elif v_x_val == .4:
-    problem_name = 'kin_opt_0930_can_04'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=.55, amp_max=0.05, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.2)
-
-elif v_x_val == .6:
-    problem_name = 'kin_opt_0930_can_06'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=.745, amp_max=0.2, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.2)
-
-elif v_x_val == .8:
-    problem_name = 'kin_opt_0930_can_08'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=.979, amp_max=0.2, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.25)
-
-elif v_x_val == 1.:
-    problem_name = 'kin_opt_0930_can_10'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=1.58, amp_max=0.0300627300556591, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
-
-panel_forces = simulator['panel_forces_all']
-total_forces = np.sum(panel_forces,axis=1)
-total_forces_x = total_forces[:,0]
-total_forces_y = total_forces[:,1]
-# total_forces_z = total_forces[:,2]
-
-plt.figure()
-plt.plot(total_forces_x[2:])
-plt.plot(total_forces_y[2:])
-plt.show()
 
 if run_opt == True:
     case_name = '_'+problem_name+'.txt'
@@ -328,7 +307,7 @@ if run_opt == True:
         plt.pause(0.1)  # Pause to update the plot
         time.sleep(0.01)  # Adjust as per your time step's actual duration
         # Save the current frame
-        filename = problem_name+f'frame_{i}.png'
+        filename = f'frame_{i}.png'
         plt.savefig(filename, dpi=200)
         filenames.append(filename)
 
@@ -341,8 +320,8 @@ if run_opt == True:
             writer.append_data(image)
 
     # Remove files
-    # for filename in filenames:
-    #     os.remove(filename)
+    for filename in filenames:
+        os.remove(filename)
 
     plt.ioff()  # Turn off interactive mode
     plt.show()

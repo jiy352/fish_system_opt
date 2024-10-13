@@ -77,9 +77,11 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     ########################################
     h_vec = csdl.expand(h_stepsize,shape=(num_time_steps-1,1))
     h = fish_system_model.register_output('h', h_vec)
+
+    # print('h is',h_vec)
     #########################################    
     fish_system_model.create_input('wave_length',val=0.95)
-    eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16, 0])
+    eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16])
     fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
     fish_system_model.create_input('amplitude_max', val=amp_max)
 
@@ -98,9 +100,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # generate initial rigid fish mesh
     #########################################
     eel_geometry_model = EelGeometryModel(surface_name=surface_name,
-                                            surface_shape=surface_shape,
-                                            num_cp=num_cp,
-                                            s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+                                        surface_shape=surface_shape,
+                                        num_cp=num_cp,
+                                        s_1_ind=s_1_ind,s_2_ind=s_2_ind)
     fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 
     # # add kinematics model
@@ -218,46 +220,22 @@ run_opt = False
 v_x_val = 1.
 num_time_steps=70
 
-if v_x_val == .2:
-    problem_name = 'kin_opt_0930_can_02'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                 v_x_val=v_x_val, tail_frequency_val=.258, amp_max=0.08, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                 num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.1)
-
-elif v_x_val == .4:
-    problem_name = 'kin_opt_0930_can_04'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=.55, amp_max=0.05, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.2)
-
-elif v_x_val == .6:
-    problem_name = 'kin_opt_0930_can_06'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=.745, amp_max=0.2, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.2)
-
-elif v_x_val == .8:
-    problem_name = 'kin_opt_0930_can_08'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=.979, amp_max=0.2, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.25)
-
-elif v_x_val == 1.:
-    problem_name = 'kin_opt_0930_can_10'
-    thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=1.58, amp_max=0.0300627300556591, 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-                num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
+problem_name = 'kin_opt_0930_can_10'
+thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
+            v_x_val=v_x_val, tail_frequency_val=1.174, amp_max=0.1, 
+            #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
+            num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
 
 panel_forces = simulator['panel_forces_all']
 total_forces = np.sum(panel_forces,axis=1)
 total_forces_x = total_forces[:,0]
 total_forces_y = total_forces[:,1]
 # total_forces_z = total_forces[:,2]
+save_forces = True
+if save_forces == True:
+    np.savetxt('saved_forces/total_forces_x'+problem_name+'.txt',total_forces_x[1:])
+    np.savetxt('saved_forces/total_forces_y'+problem_name+'.txt',total_forces_y[1:])
+    # np.savetxt('results/total_forces_z'+problem_name+'.txt',total_forces_z)
 
 plt.figure()
 plt.plot(total_forces_x[2:])
