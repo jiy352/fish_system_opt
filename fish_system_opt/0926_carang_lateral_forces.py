@@ -9,6 +9,7 @@ from fish_system_opt.submodels.fish_kinematics_model_poly import EelKinematicsMo
 from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
 from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import EfficiencyModel
+from fish_system_opt.submodels.com_model import CoMModel
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -52,7 +53,7 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     fish_system_model.create_input('L', val=L)
     a = 0.51
     b = 0.08
-    num_cp = 5
+    num_cp = 6
     x = np.linspace(1e-3, 1, num_cp)
     height =  b * np.sqrt(1 - ((x - a)/a)**2)
     fish_system_model.create_input('control_points', val=height)
@@ -78,17 +79,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     h_vec = csdl.expand(h_stepsize,shape=(num_time_steps-1,1))
     h = fish_system_model.register_output('h', h_vec)
     #########################################    
-    fish_system_model.create_input('wave_length',val=1.)
-    eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16, 0.1])
-    exp_coeff = fish_system_model.create_input('exp_coeff', val=0.1)
-    eel_amplitude_cp = fish_system_model.create_output('eel_amplitude_cp', shape=(4,))
-
-    one = fish_system_model.declare_variable('one',shape=(1,),val=1.)
-    eel_amplitude_cp[0] = one*eel_amplitude_cp_val[0]
-    eel_amplitude_cp[1] = one*eel_amplitude_cp_val[1]
-    eel_amplitude_cp[2] = one*eel_amplitude_cp_val[2]
-    eel_amplitude_cp[3] = exp_coeff
-    # eel_amplitude_cp = fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
+    fish_system_model.create_input('wave_length',val=0.95)
+    eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16, 0])
+    fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
     fish_system_model.create_input('amplitude_max', val=amp_max)
 
     #########################################
@@ -110,6 +103,12 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
                                             num_cp=num_cp,
                                             s_1_ind=s_1_ind,s_2_ind=s_2_ind)
     fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
+
+    #########################################
+    # add CoM model
+    #########################################
+    fish_system_model.add(CoMModel(surface_names=[surface_name], surface_shapes=[surface_shape]), 'CoMModel')
+
 
     # # add kinematics model
     eel_kinematics_model = EelKinematicsModel(surface_name=surface_name,
@@ -133,13 +132,11 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
         fish_system_model.add(EelViscousModel(),name='EelViscousModel')
 
     ##############################################
-    # coeff_exp = eel_amplitude_cp[3]
     
-    fish_system_model.add_design_variable('exp_coeff',upper=0.99, lower=0.01)
     fish_system_model.add_design_variable('tail_frequency',upper=lower*10,lower=lower*3)
     fish_system_model.add_design_variable('amplitude_max',upper=lower*1,lower=lower*0.05)
     # add objective
-    fish_system_model.add_objective('panel_total_power',scaler=1.)
+    # fish_system_model.add_objective('panel_total_power',scaler=1.)
     # add constraint
     ##############################################
     np_ignore  = 1
@@ -153,13 +150,27 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     thrust_coeff_avr = (avg_C_T - C_F)**2    
     fish_system_model.print_var(thrust_coeff_avr)
 
+    panel_forces_all = fish_system_model.declare_variable('panel_forces_all',shape=(num_time_steps,(num_pts_L-1)*(num_pts_R-1),3))
+    print('panel_forces_all',panel_forces_all.shape)
+    max_y  = (csdl.sum(panel_forces_all[24,:,1]))**2
+    fish_system_model.print_var(max_y)
+    fish_system_model.register_output('max_y', max_y)
+    fish_system_model.add_objective('max_y',scaler=-1.)
+    # exit()
+    com_x = fish_system_model.declare_variable('eel_CoM_x')*1.
+
     fish_system_model.register_output('thrust_coeff_avr', thrust_coeff_avr)
     fish_system_model.add_constraint('thrust_coeff_avr',equals=0.,scaler=1e2)
+    fish_system_model.add_constraint('eel_CoM_x',upper=0.55,lower=0.45)
+    fish_system_model.add_design_variable('control_points',upper=0.2,lower=0.03)
     #########################################
     fish_system_model.register_output('average_area', avg_area)
-    # fish_system_model.add_constraint('average_area',equals=0.134)
+    fish_system_model.add_constraint('average_area',equals=0.13907782)
     eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
-    fish_system_model.register_output('tail_width', eel_height[-1])
+    tail_width = fish_system_model.register_output('tail_width', eel_height[-1])
+    head_width = fish_system_model.register_output('head_width', eel_height[0])
+    fish_system_model.add_constraint('head_width',upper=0.01)
+    fish_system_model.add_constraint('tail_width',lower=0.05)
     #########################################
 
     if run_opt == True:
@@ -257,25 +268,21 @@ elif v_x_val == .8:
                 num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.25)
 
 elif v_x_val == 1.:
-    # problem_name = 'kin_opt_0930_can_10'
-    # thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-    #             v_x_val=v_x_val, tail_frequency_val=1.58, amp_max=0.0300627300556591, 
-    #             #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
-    #             num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
-    problem_name = 'kin_opt_1012_can_10'
+    problem_name = 'kin_opt_0930_can_10'
     thrust, avg_C_T, simulator = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_val, tail_frequency_val=1.46, amp_max=0.032, 
+                v_x_val=v_x_val, tail_frequency_val=1.547, amp_max=0.0300627300556591, 
                 #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
                 num_period=2, run_opt=run_opt,problem_name=problem_name, lower=0.3)
+
 panel_forces = simulator['panel_forces_all']
-total_forces = np.sum(panel_forces,axis=1)
-total_forces_x = total_forces[:,0]
-total_forces_y = total_forces[:,1]
+total_forces_profile = np.sum(panel_forces,axis=1)[:,1]
+# total_forces_x = total_forces[:,0]
+# total_forces_y = total_forces[:,1]
 # total_forces_z = total_forces[:,2]
 
+# exit()
 plt.figure()
-plt.plot(total_forces_x[2:])
-plt.plot(total_forces_y[2:])
+plt.plot(total_forces_profile)
 plt.show()
 
 if run_opt == True:
@@ -290,82 +297,82 @@ if run_opt == True:
 
 ##############################################################################################
 
-    from mpl_toolkits.mplot3d import Axes3D
-    import time
+from mpl_toolkits.mplot3d import Axes3D
+import time
 
-    # Example data: A list of arrays, where each array represents a time step
-    # Replace this with your actual data
+# Example data: A list of arrays, where each array represents a time step
+# Replace this with your actual data
 
-    def axis_equal(ax, x, y, z):
-        # Calculate the center and the range of the data in each dimension
-        max_range = np.array([x.max()-x.min(), y.max()-y.min(), z.max()-z.min()]).max() / 2.0
-        mid_x = (x.max()+x.min()) * 0.5
-        mid_y = (y.max()+y.min()) * 0.5
-        mid_z = (z.max()+z.min()) * 0.5
-        # Set the limits so that the range is the same and centered around the data
-        ax.set_xlim(mid_x - max_range, mid_x + max_range)
-        ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        ax.set_zlim(mid_z - max_range, mid_z + max_range)  
-
-
-    plt.ion()  # Turn on interactive mode
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+def axis_equal(ax, x, y, z):
+    # Calculate the center and the range of the data in each dimension
+    max_range = np.array([x.max()-x.min(), y.max()-y.min(), z.max()-z.min()]).max() / 2.0
+    mid_x = (x.max()+x.min()) * 0.5
+    mid_y = (y.max()+y.min()) * 0.5
+    mid_z = (z.max()+z.min()) * 0.5
+    # Set the limits so that the range is the same and centered around the data
+    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+    ax.set_zlim(mid_z - max_range, mid_z + max_range)  
 
 
+plt.ion()  # Turn on interactive mode
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
 
-    filenames = []
-    for i in range(num_time_steps):
-        ax.clear()  # Clear previous points
-        axis_equal(ax, simulator['eel'][:,:,:,0], simulator['eel'][:,:,:,1], simulator['eel'][:,:,:,2])
-        data = simulator['eel'][i]
-        x = data[:,:,0].flatten()
-        y = data[:,:,1].flatten()
-        z = data[:,:,2].flatten()
-        ax.scatter(x, y, z)
-        ax.set_xlabel('X Label')
-        ax.set_ylabel('Y Label')
-        ax.set_zlabel('Z Label')
-        velocity_data = simulator['eel_coll_vel'][i]
-        u = velocity_data[:, :, 0].flatten()  # Velocity components in x
-        v = velocity_data[:, :, 1].flatten()  # Velocity components in y
-        w = velocity_data[:, :, 2].flatten()  # Velocity components in z
-        # Scatter plot for the mesh points
-        ax.scatter(x, y, z, color='b')
-        # Adding velocity arrows
-        panel_center = (0.25*(simulator['eel'][i, 0:-1, 0:-1, :] + simulator['eel'][i, 0:-1, 1:, :] + simulator['eel'][i, 1:, 0:-1, :] + simulator['eel'][i, 1:, 1:, :])).reshape(-1, 3)
-        ax.quiver(panel_center[:,0], panel_center[:,1], panel_center[:, 2],
-                        u, v, w, color='r')
-        # change the view angle to x,y plane
-        # ax.view_init(90, -90)
-        plt.draw()
-        plt.pause(0.1)  # Pause to update the plot
-        time.sleep(0.01)  # Adjust as per your time step's actual duration
-        # Save the current frame
-        filename = problem_name+f'frame_{i}.png'
-        plt.savefig(filename, dpi=200)
-        filenames.append(filename)
 
-    import imageio
-    import os
-    # Create a GIF
-    with imageio.get_writer("my_animation"+problem_name+".gif", mode='I', duration=0.1) as writer:
-        for filename in filenames:
-            image = imageio.imread(filename)
-            writer.append_data(image)
 
-    # Remove files
-    # for filename in filenames:
-    #     os.remove(filename)
+filenames = []
+for i in range(num_time_steps):
+    ax.clear()  # Clear previous points
+    axis_equal(ax, simulator['eel'][:,:,:,0], simulator['eel'][:,:,:,1], simulator['eel'][:,:,:,2])
+    data = simulator['eel'][i]
+    x = data[:,:,0].flatten()
+    y = data[:,:,1].flatten()
+    z = data[:,:,2].flatten()
+    ax.scatter(x, y, z)
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    velocity_data = simulator['eel_coll_vel'][i]
+    u = velocity_data[:, :, 0].flatten()  # Velocity components in x
+    v = velocity_data[:, :, 1].flatten()  # Velocity components in y
+    w = velocity_data[:, :, 2].flatten()  # Velocity components in z
+    # Scatter plot for the mesh points
+    ax.scatter(x, y, z, color='b')
+    # Adding velocity arrows
+    panel_center = (0.25*(simulator['eel'][i, 0:-1, 0:-1, :] + simulator['eel'][i, 0:-1, 1:, :] + simulator['eel'][i, 1:, 0:-1, :] + simulator['eel'][i, 1:, 1:, :])).reshape(-1, 3)
+    ax.quiver(panel_center[:,0], panel_center[:,1], panel_center[:, 2],
+                    u, v, w, color='r')
+    # change the view angle to x,y plane
+    # ax.view_init(90, -90)
+    plt.draw()
+    plt.pause(0.1)  # Pause to update the plot
+    time.sleep(0.01)  # Adjust as per your time step's actual duration
+    # Save the current frame
+    filename = problem_name+f'frame_{i}.png'
+    plt.savefig(filename, dpi=200)
+    filenames.append(filename)
 
-    plt.ioff()  # Turn off interactive mode
-    plt.show()
+import imageio
+import os
+# Create a GIF
+with imageio.get_writer("my_animation"+problem_name+".gif", mode='I', duration=0.1) as writer:
+    for filename in filenames:
+        image = imageio.imread(filename)
+        writer.append_data(image)
 
-    x_np = np.linspace(1e-3,1, num_amp_cp)
-    control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
-    x =  simulator['eel'][0,:,2,0]
+# Remove files
+# for filename in filenames:
+#     os.remove(filename)
 
-    plt.figure()
-    plt.plot(x_np, simulator['eel_amplitude_cp'],'.')
-    plt.plot(x,simulator['amplitude'])
-    plt.show()
+plt.ioff()  # Turn off interactive mode
+plt.show()
+
+x_np = np.linspace(1e-3,1, num_amp_cp)
+control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
+x =  simulator['eel'][0,:,2,0]
+
+plt.figure()
+plt.plot(x_np, simulator['eel_amplitude_cp'],'.')
+plt.plot(x,simulator['amplitude'])
+plt.show()

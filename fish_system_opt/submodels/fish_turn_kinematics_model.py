@@ -91,7 +91,6 @@ class EelKinematicsModel(csdl.Model):
         self.parameters.declare('num_time_steps')
         self.parameters.declare('num_amp_cp')
 
-
     def define(self):
         self.surface_name = self.parameters['surface_name']
         self.surface_shape = self.parameters['surface_shape']
@@ -162,15 +161,29 @@ class EelKinematicsModel(csdl.Model):
         amplitude_carang = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
         amplitude_angui = amplitude_max_expand*(csdl.exp(s-1.))
         amplitude = amplitude_carang * (1-coeff_exp_expand) + amplitude_angui * coeff_exp_expand
-
         self.register_output('amplitude', amplitude)
-        amplitude_expand = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
+
+        amplitude_expand_temp = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
+        beta = 0.3
+        amplitude_expand = amplitude_expand_temp 
         # num_nodes, num_pts_L, num_pts_R, 1
 
-        # print('time_vector_expand',time_vector_expand.shape)
+        print('time_vector_expand',time_vector_expand.shape)
 
-        amplitude_along_body = amplitude_expand  * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
-        self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)
+        
+
+        amplitude_along_body_temp = amplitude_expand  * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand)) 
+        bias_factor_scalar = self.declare_variable('bias_factor')
+        bias_factor = csdl.expand(bias_factor_scalar,shape=(amplitude_along_body_temp[1:19,:,:,0].shape))
+        # this is a hard coded version of the amplitude along the body
+        amplitude_along_body = self.create_output(self.surface_name+'_amplitude_along_body', shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 1))
+        amplitude_along_body[0,:,:,0] = amplitude_along_body_temp[0,:,:,0]
+        amplitude_along_body[1:19,:,:,0] = amplitude_along_body_temp[1:19,:,:,0] * bias_factor
+        amplitude_along_body[19:37,:,:,0] = amplitude_along_body_temp[19:37,:,:,0] 
+        amplitude_along_body[37:55,:,:,0] = amplitude_along_body_temp[37:55,:,:,0] * bias_factor
+        amplitude_along_body[55:73,:,:,0] = amplitude_along_body_temp[55:73,:,:,0]
+
+        # self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)
 
         swimming_fish_mesh = self.create_output(self.surface_name, shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 3))
         swimming_fish_mesh[:,:,:,0] = rigid_fish_mesh_expand[:,:,:,0]
@@ -179,8 +192,16 @@ class EelKinematicsModel(csdl.Model):
         swimming_fish_mesh[:,:,:,2] = rigid_fish_mesh_expand[:,:,:,2]
         # self.register_output(self.surface_name, swimming_fish_mesh)
         
-        lateral_velocity = amplitude_expand  * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
-        self.register_output(self.surface_name+'_lateral_velocity', lateral_velocity)
+        lateral_velocity_temp = amplitude_expand  * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
+        # self.register_output(self.surface_name+'_lateral_velocity', lateral_velocity)
+        lateral_velocity = self.create_output(self.surface_name+'_lateral_velocity', shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 1))
+
+        lateral_velocity[0,:,:,0] = lateral_velocity_temp[0,:,:,0] 
+        lateral_velocity[1:19,:,:,0] = lateral_velocity_temp[1:19,:,:,0] * bias_factor
+        lateral_velocity[19:37,:,:,0] = lateral_velocity_temp[19:37,:,:,0]
+        lateral_velocity[37:55,:,:,0] = lateral_velocity_temp[37:55,:,:,0] * bias_factor
+        lateral_velocity[55:73,:,:,0] = lateral_velocity_temp[55:73,:,:,0]
+
         fish_collocation_pts_velocity = self.create_output(self.surface_name+'_coll_vel', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
         fish_collocation_pts_velocity[:,:,:,1] = 0.25*(lateral_velocity[:,:-1,:-1,:]+lateral_velocity[:,:-1,1:,:]+lateral_velocity[:,1:,:-1,:]+lateral_velocity[:,1:,1:,:])
 
@@ -201,7 +222,7 @@ if __name__ == '__main__':
     L = 1.0
     s_1_ind = 5
     s_2_ind = num_pts_L-3
-    num_time_steps = 50
+    num_time_steps = 73
     num_period = 2
     num_amp_cp = 4
 
@@ -238,22 +259,53 @@ if __name__ == '__main__':
     eel_model.create_input('b_coeff', val=0.08)
     coeffs = np.array([0.02, -0.08, 0.16, 0.])
 
+    eel_model.create_input('bias_factor',val=0.2)
     eel_model.create_input('tail_frequency',val=0.48)
     eel_model.create_input('wave_length',val=1.0)
-    eel_model.create_input('amplitude_max',val=0.1)
+    eel_model.create_input('amplitude_max',val=0.2)
     eel_model.create_input('eel_amplitude_cp',val=coeffs)
     
 
     simulator = python_csdl_backend.Simulator(eel_model, display_scripts=False)
     simulator.run()
-    # simulator.check_partials(compact_print=True)
+
     import matplotlib.pyplot as plt
     plt.rcParams['text.usetex'] = False
+
+    eel_amplitude_along_body_mod = simulator['eel_amplitude_along_body'].copy()
+    eel_amplitude_along_body_mod[0:14] = simulator['eel_amplitude_along_body'].copy()[0:14]#*0.5
+    eel_amplitude_along_body_mod[27:40] = simulator['eel_amplitude_along_body'].copy()[27:40]#*0.5
+
+
+    plt.figure()
+    # plot head motion
+    head_motion = eel_amplitude_along_body_mod[:,0,0,0]
+    plt.plot(simulator['time_vector'], head_motion,'.-' ,label='Head')
+    # plot tail motion
+    tail_motion = eel_amplitude_along_body_mod[:,-1,0,0]
+    plt.plot(simulator['time_vector'], tail_motion, '.-' ,label='Tail')
+    # plot mid body motion
+    mid_body_motion = eel_amplitude_along_body_mod[:,21,0,0]
+    plt.plot(simulator['time_vector'], mid_body_motion, '.-' ,label='Mid Body')
+    # draw a line where y = 0
+    plt.axhline(y=0, color='r', linestyle='--')
+    plt.legend()
+    plt.title('Eel Amplitude Along Body')
+    plt.show()
+
+
+
+
+    # exit()
+    # simulator.check_partials(compact_print=True)
+
     diff = (simulator['eel'][1:,20,1,1]-simulator['eel'][:-1,20,1,1])
     dt = (simulator['time_vector'][1]-simulator['time_vector'][0])/0.48
     plt.figure()
     plt.plot(diff/dt)
     plt.plot(simulator['eel_lateral_velocity'][:,20,1].flatten())
+    plt.title('Lateral Velocity')
+
 
     # exit()
 
@@ -317,7 +369,7 @@ if __name__ == '__main__':
         ax.quiver(panel_center[:,0], panel_center[:,1], panel_center[:, 2],
                      u, v, w, color='r')
         # change the view angle to x,y plane
-        # ax.view_init(90, -90)
+        ax.view_init(90, -90)
 
 
         plt.draw()
