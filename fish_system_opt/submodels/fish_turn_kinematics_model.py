@@ -14,74 +14,7 @@
 # discretization: 'uniform' or 'cosine'
 import csdl
 import numpy as np
-import scipy.sparse
-# from get_b_spline_mtx import get_bspline_mtx
-
-def get_bspline_mtx(num_cp, num_pt, order=4):
-    order = min(order, num_cp)
-
-    knots = np.zeros(num_cp + order)
-    knots[order-1:num_cp+1] = np.linspace(0, 1, num_cp - order + 2)
-    knots[num_cp+1:] = 1.0
-
-    t_vec = np.linspace(0, 1, num_pt)
-
-    basis = np.zeros(order)
-    arange = np.arange(order)
-    data = np.zeros((num_pt, order))
-    rows = np.zeros((num_pt, order), int)
-    cols = np.zeros((num_pt, order), int)
-
-    for ipt in range(num_pt):
-        t = t_vec[ipt]
-
-        i0 = -1
-        for ind in range(order, num_cp+1):
-            if (knots[ind-1] <= t) and (t < knots[ind]):
-                i0 = ind - order
-        if t == knots[-1]:
-            i0 = num_cp - order
-
-        basis[:] = 0.
-        basis[-1] = 1.
-
-        for i in range(2, order+1):
-            l = i - 1
-            j1 = order - l
-            j2 = order
-            n = i0 + j1
-            if knots[n+l] != knots[n]:
-                basis[j1-1] = (knots[n+l] - t) / \
-                              (knots[n+l] - knots[n]) * basis[j1]
-            else:
-                basis[j1-1] = 0.
-            for j in range(j1+1, j2):
-                n = i0 + j
-                if knots[n+l-1] != knots[n-1]:
-                    basis[j-1] = (t - knots[n-1]) / \
-                                (knots[n+l-1] - knots[n-1]) * basis[j-1]
-                else:
-                    basis[j-1] = 0.
-                if knots[n+l] != knots[n]:
-                    basis[j-1] += (knots[n+l] - t) / \
-                                  (knots[n+l] - knots[n]) * basis[j]
-            n = i0 + j2
-            if knots[n+l-1] != knots[n-1]:
-                basis[j2-1] = (t - knots[n-1]) / \
-                              (knots[n+l-1] - knots[n-1]) * basis[j2-1]
-            else:
-                basis[j2-1] = 0.
-
-        data[ipt, :] = basis
-        rows[ipt, :] = ipt
-        cols[ipt, :] = i0 + arange
-
-    data, rows, cols = data.flatten(), rows.flatten(), cols.flatten()
-
-    return scipy.sparse.csr_matrix(
-        (data, (rows, cols)), 
-        shape=(num_pt, num_cp),
-    )
+from fish_system_opt.submodels.fish_midline_ccw import FishTurnCCModel
 
 class EelKinematicsModel(csdl.Model):
     def initialize(self):
@@ -89,7 +22,7 @@ class EelKinematicsModel(csdl.Model):
         self.parameters.declare('surface_shape') # note this is without number of nodes
         self.parameters.declare('num_period')
         self.parameters.declare('num_time_steps')
-        self.parameters.declare('num_amp_cp')
+
 
     def define(self):
         self.surface_name = self.parameters['surface_name']
@@ -97,24 +30,36 @@ class EelKinematicsModel(csdl.Model):
         num_period = self.parameters['num_period']
         self.num_time_steps = self.parameters['num_time_steps']
 
-        tail_frequency = self.declare_variable('tail_frequency')
-        wave_length = self.declare_variable('wave_length')
+        # declare the variables: L, start_L, theta_max, time_vector, tail_frequency
+        L = self.declare_variable('L', val=1.0)
+        start_L = self.create_input('start_L', val=0.5)
+        # this part is a hard coded part, where I assume the fish is turning but the front half is not bending
 
-        time_steps_normalized = np.linspace(0, num_period, self.num_time_steps)
-        # time_vector = csdl.expand(tail_frequency, (time_steps_normalized.shape)) * time_steps_normalized
-        # self.register_output('time_vector', time_vector)
-        time_vector = self.create_input('time_vector', val=time_steps_normalized)
-        # print('time_vector',time_vector.shape)
-        # print('time_steps_normalized',time_steps_normalized[1])
+        # we assume theta is a cosine function starting from its maximum value
+        theta_max = self.create_input('theta_max', val=np.pi/24)
+        # this is half of the theta_max!!!!!!!
 
-        L = self.declare_variable('L')        
+        eps  = 1e-6
+
+        time_vector_val = np.linspace(eps, num_period+eps, self.num_time_steps)
+        time_vector = self.create_input('time_vector', val=time_vector_val)
+        # this is essentially the T/t, which is from 0 to num_period
+        tail_frequency = self.declare_variable('tail_frequency', val=1.)
+        # this is the frequency of the tail    
 
         # swimming_fish_mesh, swimming_fish_velocsity = self.compute_swimming_fish_kinematics()
-        self.compute_swimming_fish_kinematics(L, tail_frequency, wave_length, time_vector)
 
-    def compute_swimming_fish_kinematics(self, L, tail_frequency, wave_length, time_vector):
+        self.add(FishTurnCCModel(surface_name=self.surface_name,surface_shape=self.surface_shape,num_period=num_period,num_time_steps=self.num_time_steps),'FishTurnCCModel')
+        # this is the x and y position and nodal velocity of the fish assumming it is turning in a way that perserves the constant curvature
+        x = self.declare_variable('x', shape=(self.num_time_steps, self.surface_shape[0]))
+        y = self.declare_variable('y', shape=(self.num_time_steps, self.surface_shape[0]))
+        x_dot = self.declare_variable('x_dot', shape=(self.num_time_steps, self.surface_shape[0]))
+        y_dot = self.declare_variable('y_dot', shape=(self.num_time_steps, self.surface_shape[0]))
+
+        self.compute_swimming_fish_kinematics(L, tail_frequency, time_vector, x, y, x_dot, y_dot)
+
+    def compute_swimming_fish_kinematics(self, L, tail_frequency, time_vector, x, y, x_dot, y_dot):
         surface_shape = self.parameters['surface_shape']
-        num_amp_cp = self.parameters['num_amp_cp']
 
         self.num_pts_L = self.parameters['surface_shape'][0]
         self.num_pts_R = self.parameters['surface_shape'][1]
@@ -122,89 +67,36 @@ class EelKinematicsModel(csdl.Model):
         # prepare the variables to the correct shape
         ############################################
         # use helper function to expand the variables to the correct shape
-
         L_expand = self.prepare_scaler_variables_to_nnnxny(L)
-        wave_length_expand = self.prepare_scaler_variables_to_nnnxny(wave_length)
         tail_frequency_expand = self.prepare_scaler_variables_to_nnnxny(tail_frequency)
+        # prepare the x, y, x_dot, y_dot to the (nt, nx, ny, 1) shape
+        x_expand = self.prepare_vector_variables_ntnx_to_ntnxny1(x)
+        y_expand = self.prepare_vector_variables_ntnx_to_ntnxny1(y)
+        x_dot_expand = self.prepare_vector_variables_ntnx_to_ntnxny1(x_dot, shape=(self.num_time_steps, self.num_pts_L, self.num_pts_R-1, 1))
+        y_dot_expand = self.prepare_vector_variables_ntnx_to_ntnxny1(y_dot, shape=(self.num_time_steps, self.num_pts_L, self.num_pts_R-1, 1))
 
         time_vector_size = time_vector.size
         shape = (time_vector_size,)+(self.num_pts_L, self.num_pts_R, 1)
         time_vector_expand = csdl.expand(time_vector,shape=shape,indices='i->ijkl')
+
         rigid_fish_mesh = self.declare_variable(self.surface_name+'_rigid_mesh', shape=surface_shape)
         rigid_fish_mesh_expand = csdl.expand(rigid_fish_mesh,shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R,3),indices='jkl->ijkl')
-        s_expand = rigid_fish_mesh_expand[:,:,:,0]
-        s = csdl.reshape(rigid_fish_mesh[:,0,0],(self.num_pts_L,))
-        # s is defined as the discritization in the length direction
+        # s_expand = rigid_fish_mesh_expand[:,:,:,0]
+        # s = csdl.reshape(rigid_fish_mesh[:,0,0],(self.num_pts_L,))
 
-        # x_np = np.linspace(0,1, num_amp_cp)
-        # control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
+        ode_surface_shape = (self.num_time_steps, self.num_pts_L, self.num_pts_R, 3)
+        swimming_fish_mesh = self.create_output(self.surface_name, shape=ode_surface_shape, val=0.)
+        swimming_fish_mesh[:,:,:,0] = x_expand
+        swimming_fish_mesh[:,:,:,1] = y_expand 
 
-        amplitude_cp = self.declare_variable(self.surface_name+'_amplitude_cp',shape=(num_amp_cp,))
-        coeff_05s = amplitude_cp[0]
-        coeff_s = amplitude_cp[1]
-        coeff_2s = amplitude_cp[2]
-        # CHANGE Oct 12 2024, change the kinematics to mimic switch between carangiform and anguilliform
-        coeff_exp = amplitude_cp[3]
-
-        # print('coeff_05s',coeff_05s.shape)
-        coeff_05s_expand = csdl.expand(coeff_05s,shape=(s.shape))
-        coeff_s_expand = csdl.expand(coeff_s,shape=(s.shape))
-        coeff_2s_expand = csdl.expand(coeff_2s,shape=(s.shape))
-        coeff_exp_expand = csdl.expand(coeff_exp,shape=(s.shape))
-
-        amplitude_max = self.declare_variable('amplitude_max')
-        amplitude_max_expand = csdl.expand(amplitude_max,shape=(s.shape))   
-        # print('coeff_05s_expand',coeff_05s_expand.shape)
-        '''CHANGE 0926/2024 change the kinematics to mimic carangform'''
-        # amplitude = amplitude_max_expand*(coeff_05s_expand* s**0.5 + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
-        # amplitude = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
-        amplitude_carang = amplitude_max_expand*(coeff_05s_expand + coeff_s_expand * s + coeff_2s_expand * s**2)/(coeff_05s_expand + coeff_s_expand + coeff_2s_expand)
-        amplitude_angui = amplitude_max_expand*(csdl.exp(s-1.))
-        amplitude = amplitude_carang * (1-coeff_exp_expand) + amplitude_angui * coeff_exp_expand
-        self.register_output('amplitude', amplitude)
-
-        amplitude_expand_temp = csdl.expand(amplitude,shape=(s_expand.shape),indices='j->ijkl')
-        beta = 0.3
-        amplitude_expand = amplitude_expand_temp 
-        # num_nodes, num_pts_L, num_pts_R, 1
-
-        print('time_vector_expand',time_vector_expand.shape)
-
-        
-
-        amplitude_along_body_temp = amplitude_expand  * csdl.sin(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand)) 
-        bias_factor_scalar = self.declare_variable('bias_factor')
-        bias_factor = csdl.expand(bias_factor_scalar,shape=(amplitude_along_body_temp[1:19,:,:,0].shape))
-        # this is a hard coded version of the amplitude along the body
-        amplitude_along_body = self.create_output(self.surface_name+'_amplitude_along_body', shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 1))
-        amplitude_along_body[0,:,:,0] = amplitude_along_body_temp[0,:,:,0]
-        amplitude_along_body[1:19,:,:,0] = amplitude_along_body_temp[1:19,:,:,0] * bias_factor
-        amplitude_along_body[19:37,:,:,0] = amplitude_along_body_temp[19:37,:,:,0] 
-        amplitude_along_body[37:55,:,:,0] = amplitude_along_body_temp[37:55,:,:,0] * bias_factor
-        amplitude_along_body[55:73,:,:,0] = amplitude_along_body_temp[55:73,:,:,0]
-
-        # self.register_output(self.surface_name+'_amplitude_along_body', amplitude_along_body)
-
-        swimming_fish_mesh = self.create_output(self.surface_name, shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 3))
-        swimming_fish_mesh[:,:,:,0] = rigid_fish_mesh_expand[:,:,:,0]
-        swimming_fish_mesh[:,:,:,1] = amplitude_along_body +  rigid_fish_mesh_expand[:,:,:,1]
-        # swimming_fish_mesh[:,:,:,1] = rigid_fish_mesh_expand[:,:,:,1]
         swimming_fish_mesh[:,:,:,2] = rigid_fish_mesh_expand[:,:,:,2]
-        # self.register_output(self.surface_name, swimming_fish_mesh)
+        ode_panel_shape = (self.num_time_steps, self.num_pts_L-1, self.num_pts_R-1, 3)
+        swimming_fish_velocity = self.create_output(self.surface_name+'_coll_vel', shape=ode_panel_shape, val=0.)
+        swimming_fish_velocity[:,:,:,0] = (x_dot_expand[:,0:-1,:,:] + x_dot_expand[:,1:,:,:]) / 2
+        swimming_fish_velocity[:,:,:,1] = (y_dot_expand[:,0:-1,:,:] + y_dot_expand[:,1:,:,:]) / 2
+        # swimming_fish_velocity[:,:,:,2] = 0.
+
         
-        lateral_velocity_temp = amplitude_expand  * (-2*np.pi*tail_frequency_expand) * csdl.cos(2*np.pi*(s_expand/L_expand / wave_length_expand - time_vector_expand))
-        # self.register_output(self.surface_name+'_lateral_velocity', lateral_velocity)
-        lateral_velocity = self.create_output(self.surface_name+'_lateral_velocity', shape=(self.num_time_steps,self.num_pts_L,self.num_pts_R, 1))
-
-        lateral_velocity[0,:,:,0] = lateral_velocity_temp[0,:,:,0] 
-        lateral_velocity[1:19,:,:,0] = lateral_velocity_temp[1:19,:,:,0] * bias_factor
-        lateral_velocity[19:37,:,:,0] = lateral_velocity_temp[19:37,:,:,0]
-        lateral_velocity[37:55,:,:,0] = lateral_velocity_temp[37:55,:,:,0] * bias_factor
-        lateral_velocity[55:73,:,:,0] = lateral_velocity_temp[55:73,:,:,0]
-
-        fish_collocation_pts_velocity = self.create_output(self.surface_name+'_coll_vel', val=np.zeros((self.num_time_steps,self.num_pts_L-1,self.num_pts_R-1,3)))
-        fish_collocation_pts_velocity[:,:,:,1] = 0.25*(lateral_velocity[:,:-1,:-1,:]+lateral_velocity[:,:-1,1:,:]+lateral_velocity[:,1:,:-1,:]+lateral_velocity[:,1:,1:,:])
-
 
     def prepare_scaler_variables_to_nnnxny(self, var):
         shape = (self.num_time_steps, self.num_pts_L, self.num_pts_R, 1)
@@ -213,6 +105,11 @@ class EelKinematicsModel(csdl.Model):
     def prepare_vector_variables_to_nx(self, var):
         shape = (self.num_pts_L, )
         return csdl.expand(var,shape=shape)
+    
+    def prepare_vector_variables_ntnx_to_ntnxny1(self, var, shape=None):
+        if shape is None:
+            shape = (self.num_time_steps, self.num_pts_L, self.num_pts_R, 1)
+        return csdl.expand(var,shape=shape, indices='ij->ijk1')
 
 
 if __name__ == '__main__':
@@ -222,7 +119,7 @@ if __name__ == '__main__':
     L = 1.0
     s_1_ind = 5
     s_2_ind = num_pts_L-3
-    num_time_steps = 73
+    num_time_steps = 71 # any number that can be divided by 4 +1 will the the fish encouter singularities at theta = 0
     num_period = 2
     num_amp_cp = 4
 
@@ -250,7 +147,7 @@ if __name__ == '__main__':
                                         surface_shape=surface_shape,
                                         num_period=num_period,
                                         num_time_steps=num_time_steps,
-                                        num_amp_cp=num_amp_cp)
+                                       )
     eel_model = csdl.Model()
     eel_model.add(eel_geometry_model, name='EelGeometryModel')
     eel_model.add(eel_kinematics_model, name='EelKinematicsModel')
@@ -259,52 +156,64 @@ if __name__ == '__main__':
     eel_model.create_input('b_coeff', val=0.08)
     coeffs = np.array([0.02, -0.08, 0.16, 0.])
 
-    eel_model.create_input('bias_factor',val=0.2)
     eel_model.create_input('tail_frequency',val=0.48)
     eel_model.create_input('wave_length',val=1.0)
     eel_model.create_input('amplitude_max',val=0.2)
-    eel_model.create_input('eel_amplitude_cp',val=coeffs)
     
 
-    simulator = python_csdl_backend.Simulator(eel_model, display_scripts=False)
+    simulator = python_csdl_backend.Simulator(eel_model, display_scripts=True)
     simulator.run()
 
+
+
+
     import matplotlib.pyplot as plt
     plt.rcParams['text.usetex'] = False
+    fig = plt.figure()
+    theta_profile = np.rad2deg(simulator["theta_profile"])
+    time_vector = simulator['time_vector']
+    theta_dot = np.rad2deg(simulator['theta_dot'])
 
-    eel_amplitude_along_body_mod = simulator['eel_amplitude_along_body'].copy()
-    eel_amplitude_along_body_mod[0:14] = simulator['eel_amplitude_along_body'].copy()[0:14]#*0.5
-    eel_amplitude_along_body_mod[27:40] = simulator['eel_amplitude_along_body'].copy()[27:40]#*0.5
-
-
-    plt.figure()
-    # plot head motion
-    head_motion = eel_amplitude_along_body_mod[:,0,0,0]
-    plt.plot(simulator['time_vector'], head_motion,'.-' ,label='Head')
-    # plot tail motion
-    tail_motion = eel_amplitude_along_body_mod[:,-1,0,0]
-    plt.plot(simulator['time_vector'], tail_motion, '.-' ,label='Tail')
-    # plot mid body motion
-    mid_body_motion = eel_amplitude_along_body_mod[:,21,0,0]
-    plt.plot(simulator['time_vector'], mid_body_motion, '.-' ,label='Mid Body')
-    # draw a line where y = 0
-    plt.axhline(y=0, color='r', linestyle='--')
+    plt.plot(time_vector, theta_profile, label='theta')
+    plt.plot(time_vector, theta_dot, label='theta_dot')
+    plt.xlabel('time')
+    plt.ylabel('theta')
     plt.legend()
-    plt.title('Eel Amplitude Along Body')
-    plt.show()
 
-
-
-
-    # exit()
-    # simulator.check_partials(compact_print=True)
-
-    diff = (simulator['eel'][1:,20,1,1]-simulator['eel'][:-1,20,1,1])
-    dt = (simulator['time_vector'][1]-simulator['time_vector'][0])/0.48
     plt.figure()
-    plt.plot(diff/dt)
-    plt.plot(simulator['eel_lateral_velocity'][:,20,1].flatten())
-    plt.title('Lateral Velocity')
+    x_tip = simulator['x_tip']
+    y_tip = simulator['y_tip']
+    
+    plt.plot(x_tip, y_tip,'o')
+    plt.xlabel('x_tip')
+    plt.ylabel('y_tip')
+
+    # plot the position of the actuator
+    x = simulator['x']
+    y = simulator['y']
+    for i in range(num_time_steps):
+        plt.plot(x[i,:], y[i,:],'-')
+    # axis equal
+    plt.axis('equal')
+    plt.xlim(0,1)
+    plt.ylim(0,1)
+    plt.show()
+    # exit()
+
+
+
+
+
+
+    # exit()
+    # simulator.check_partials(compact_print=True)
+
+    # diff = (simulator['eel'][1:,20,1,1]-simulator['eel'][:-1,20,1,1])
+    # dt = (simulator['time_vector'][1]-simulator['time_vector'][0])/0.48
+    # plt.figure()
+    # plt.plot(diff/dt)
+    # plt.plot(simulator['eel_lateral_velocity'][:,20,1].flatten())
+    # plt.title('Lateral Velocity')
 
 
     # exit()
@@ -312,11 +221,11 @@ if __name__ == '__main__':
     # simulator.check_partials(compact_print=True)
 
 
-    height = simulator['eel_height']
-    x = np.linspace(0,L,num_pts_L)
+    # height = simulator['eel_height']
+    # x = np.linspace(0,L,num_pts_L)
 
-    import matplotlib.pyplot as plt
-    plt.rcParams['text.usetex'] = False
+    # import matplotlib.pyplot as plt
+    # plt.rcParams['text.usetex'] = False
 
 
     # plt.figure()
@@ -369,7 +278,7 @@ if __name__ == '__main__':
         ax.quiver(panel_center[:,0], panel_center[:,1], panel_center[:, 2],
                      u, v, w, color='r')
         # change the view angle to x,y plane
-        ax.view_init(90, -90)
+        # ax.view_init(90, -90)
 
 
         plt.draw()
@@ -396,11 +305,4 @@ if __name__ == '__main__':
     plt.ioff()  # Turn off interactive mode
     plt.show()
 
-    x_np = np.linspace(1e-3,1, num_amp_cp)
-    control_points_inital = (x_np + 0.03) / (1+0.03) * 0.125
-    x =  simulator['eel'][0,:,2,0]
 
-    plt.figure()
-    plt.plot(x_np, simulator['eel_amplitude_cp'],'.')
-    plt.plot(x,simulator['amplitude'])
-    plt.show()
