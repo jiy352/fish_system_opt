@@ -36,7 +36,7 @@ class EelKinematicsModel(csdl.Model):
         # this part is a hard coded part, where I assume the fish is turning but the front half is not bending
 
         # we assume theta is a cosine function starting from its maximum value
-        theta_max = self.create_input('theta_max', val=np.pi/24)
+        theta_max = self.declare_variable('theta_max')
         # this is half of the theta_max!!!!!!!
 
         eps  = 1e-6

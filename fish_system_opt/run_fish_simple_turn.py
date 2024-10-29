@@ -102,6 +102,7 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     #########################################
     v_x = fish_system_model.create_input('v_x', val=v_x_val)
     u = fish_system_model.register_output('u', csdl.expand(v_x,shape=(num_time_steps,1)))
+    theta_max = fish_system_model.create_input('theta_max', val=np.pi/24)
 
     #########################################
     # inputs to the hydrodynamics model
@@ -132,18 +133,18 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     #########################################
     # add hydrodynamics model
     #########################################
+    np_ignore  = 1  
 
     fish_system_model.add(UVLMSolver(num_times=num_time_steps,states_dict=states_dict,
                                         surface_properties_dict=surface_properties_dict), 'fish_model')
     fish_system_model.add(EfficiencyModel(surface_names=[surface_name], surface_shapes=ode_surface_shapes,
-                                            n_ignore=0),name='EfficiencyModel')
+                                            n_ignore=int(num_time_steps/num_period)*np_ignore),name='EfficiencyModel')
     try:
         fish_system_model.add(EelViscousModel(surface_shapes=ode_surface_shapes),name='EelViscousModel')
     except:
         fish_system_model.add(EelViscousModel(),name='EelViscousModel')
 
     # efficiency = fish_system_model.declare_variable('efficiency', shape=(1,))
-    np_ignore  = 1  
 
     thrust = fish_system_model.declare_variable('thrust',shape=(num_time_steps,1))[int(num_time_steps/num_period)*np_ignore:,:]
     C_F = fish_system_model.declare_variable('C_F')
@@ -161,7 +162,12 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
 
     mass = 3
 
-    R = mass * v_x**2 / Fy
+    F_total = fish_system_model.declare_variable('panel_forces_all',shape=(num_time_steps,int((num_pts_L-1)*(num_pts_R-1)),3))[int(num_time_steps/num_period)*np_ignore:,:,:]
+    Fy = csdl.sum(F_total[:,:,1])/(num_time_steps)
+    R = -mass * v_x**2 / Fy
+    fish_system_model.register_output('R', R)
+
+    
 
     return fish_system_model#, efficiency
 
@@ -174,7 +180,7 @@ problem_name = 'simple_turn'
 
 
 v_x_list = np.array([0.3,])
-tail_frequency_list = np.array([0.154])
+tail_frequency_list = np.array([0.225885])
 amplitude_max_list = np.array([0.0304861])
 
 num_time_steps=70

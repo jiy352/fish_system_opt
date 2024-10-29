@@ -55,9 +55,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     a = 0.51
     b = 0.08
     num_cp = 6
-    # x = np.linspace(1e-3, 1, num_cp)
-    # height =  b * np.sqrt(1 - ((x - a)/a)**2)
-    # fish_system_model.declare_variable('control_points', val=height*0)
+    x = np.linspace(1e-3, 1, num_cp)
+    height =  b * np.sqrt(1 - ((x - a)/a)**2)
+    fish_system_model.declare_variable('control_points', val=height*0)
 
     #########################################
     # inputs to the sub kinematics model
@@ -150,13 +150,13 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     ##############################################
     
 
-run_opt = True
+run_opt = False
 problem_name = 'full_opt_1018_8var_mp'
 v_x_list = np.array([0.3, 0.9])
 tail_frequency_list = np.array([0.5458, 1.409])
-amplitude_max_list = np.array([0.0304861, 0.0305406])
+amplitude_max_list = np.array([0.03049, 0.0305407])
 
-num_time_steps=73
+num_time_steps=70
 
 fish_mp_model = csdl.Model()
 sum_eff = []
@@ -237,19 +237,19 @@ for i in range(len(v_x_list)):
 
     fish_mp_model.add_design_variable(f'tail_frequency_{i}',upper=lower*12,lower=lower*.5)
     fish_mp_model.add_design_variable(f'amplitude_max_{i}',upper=lower*2,lower=lower*0.08)
-    fish_mp_model.add_design_variable(f'coeff_const_{i}',upper=0.05,lower=0.01)
-    fish_mp_model.add_design_variable(f'coeff_linear_{i}',upper=-0.04,lower=-0.1)
+    fish_mp_model.add_design_variable(f'coeff_const_{i}',upper=0.03,lower=0.01)
+    fish_mp_model.add_design_variable(f'coeff_linear_{i}',upper=-0.06,lower=-0.1)
 
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.thrust_coeff_avr',equals=0.,scaler=1e2)
-    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.average_area',lower=0.13, upper=0.15)
-    # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.head_width',upper=0.01)
-    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.tail_width',lower=0.02)
+    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.average_area',lower=0.13, upper=0.14)
+    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.head_width',upper=0.01)
+    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.tail_width',lower=0.05)
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.eel_CoM_x',upper=0.6,lower=0.4)
     
 
 
 # fish_mp_model.add_design_variable('control_points',upper=0.2,lower=0.008)
-fish_mp_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.505)
+fish_mp_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.51*1)
 fish_mp_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
 
 eff0 = fish_mp_model.declare_variable('fish_system_model_0.efficiency',shape=(1,)) * 1.
@@ -288,7 +288,7 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=100,
+        Major_iterations=120,
         Major_optimality=1e-7,
         Major_feasibility=1e-7,
         append2file=True,
