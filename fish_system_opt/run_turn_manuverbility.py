@@ -256,7 +256,7 @@ for i in range(len(v_x_list)):
     # fish_mp_model.add_design_variable(f'coeff_linear_{i}',upper=-0.04,lower=-0.1)
 
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.thrust_coeff_avr',equals=0.,scaler=1e2)
-    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.R',equals=3.)
+    # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.R',equals=3.)
     # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.average_area',lower=0.13, upper=0.15)
     # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.head_width',upper=0.01)
     # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.tail_width',lower=0.02)
@@ -270,10 +270,13 @@ for i in range(len(v_x_list)):
 fish_mp_model.add_design_variable(f'theta_max',upper=np.pi/10,lower=np.pi/90) 
 
 power = fish_mp_model.declare_variable('fish_system_model_0.panel_total_power') * 1.
+R_sq = fish_mp_model.declare_variable('fish_system_model_0.R') **2
+
 fish_mp_model.register_output('sum_power', power)
+fish_mp_model.register_output('obj_R_sqr', R_sq)
 
-fish_mp_model.add_objective('sum_power')
-
+# fish_mp_model.add_objective('sum_power')
+fish_mp_model.add_objective('obj_R_sqr')
 # eff1 = fish_mp_model.declare_variable('fish_system_model_1.efficiency',shape=(1,)) * 1.
 
 
@@ -305,7 +308,7 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=75,
+        Major_iterations=60,
         Major_optimality=1e-7,
         Major_feasibility=1e-7,
         append2file=True,

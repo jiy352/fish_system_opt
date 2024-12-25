@@ -3,22 +3,30 @@ import numpy as np
 import csdl
 from python_csdl_backend import Simulator
 # from fish_system_opt.submodels.fish_geometry_model_bspline import EelGeometryModel
-from fish_system_opt.submodels.fish_geometry_model import EelGeometryModel
-from fish_system_opt.submodels.fish_kinematics_model_poly import EelKinematicsModel
+from fish_system_opt.submodels.fish_geometry_model_carangiform import FishGeometryModel
+from fish_system_opt.submodels.fish_kinematics_model_poly_new import EelKinematicsModel
 from fish_system_opt.submodels.fish_turn_kinematics_model import EelKinematicsModel as EelKinematicsModelTurn
 # from fish_system_opt.submodels.fish_kinematics_model import EelKinematicsModel
 
 from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
 from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import EfficiencyModel
-from fish_system_opt.submodels.com_model import CoMModel
+from fish_system_opt.submodels.com_model_carangifrom import CoMModel
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import time
 plt.rcParams['text.usetex'] = False
 
-def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_val, amp_max, num_period, run_opt=False, del_sim=False,turn=False,problem_name='kin_opt'):
+'''
+In this optimization, we have the following design variables:
+- tail_frequency (1)
+- amplitude_scalar (1) and ratios (4): need to add later
+- amplitude_max (1): need to delete later
+- geometric variables (1) 
+'''
+
+def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_val, num_period, num_points_list, run_opt=False, del_sim=False,turn=False,problem_name='kin_opt'):
     #########################################
     # solver specific parameters
     #########################################
@@ -53,23 +61,11 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # inputs to the sub eel_geometry_model
     #########################################
     fish_system_model.create_input('L', val=L)
-    a = 0.51
-    b = 0.08
-    num_cp = 6
-    # x = np.linspace(1e-3, 1, num_cp)
-    # height =  b * np.sqrt(1 - ((x - a)/a)**2)
-    # fish_system_model.declare_variable('control_points', val=height*0)
-
-    #########################################
-    # inputs to the sub kinematics model
-    #########################################
-    # tail_frequency_csdl = fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
 
     #########################################
     # inputs to the sub kinematics model
     #########################################
     tail_frequency_csdl = fish_system_model.create_input('tail_frequency',val=tail_frequency_val)
-    # TODO: check if this work, also for how v_x is given to the hydrodynamic model
     h_stepsize = num_period/ tail_frequency_csdl / (num_time_steps-1)
 
     fish_system_model.register_output('delta_t', h_stepsize)
@@ -82,21 +78,6 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     h = fish_system_model.register_output('h', h_vec)
     #########################################    
     fish_system_model.create_input('wave_length',val=0.95)
-
-    #########################################
-    # eel_amplitude_cp_val  = np.array([0.02, -0.08, 0.16, 0])
-
-    coeff_const = fish_system_model.declare_variable('coeff_const', val=0.02)
-    coeff_linear = fish_system_model.declare_variable('coeff_linear', val=-0.08)
-    coeff_quad = coeff_linear * (-2.)
-
-    eel_amplitude_cp = fish_system_model.create_output('eel_amplitude_cp', shape=(4,), val=0.)
-    eel_amplitude_cp[0] = coeff_const
-    eel_amplitude_cp[1] = coeff_linear
-    eel_amplitude_cp[2] = coeff_quad
-    
-    # fish_system_model.create_input('eel_amplitude_cp', val=eel_amplitude_cp_val)
-    fish_system_model.create_input('amplitude_max', val=amp_max)
 
     #########################################
     # inputs to viscous model
@@ -112,9 +93,9 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     # add geometry and kinematics model
     # generate initial rigid fish mesh
     #########################################
-    eel_geometry_model = EelGeometryModel(surface_name=surface_name,
+    eel_geometry_model = FishGeometryModel(surface_name=surface_name,
                                             surface_shape=surface_shape,
-                                            s_1_ind=s_1_ind,s_2_ind=s_2_ind)
+                                            num_points_list=num_points_list)
     fish_system_model.add(eel_geometry_model, name='EelGeometryModel')
 
     #########################################
@@ -139,7 +120,7 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
                                                     num_time_steps=num_time_steps)  
                                              
         fish_system_model.add(eel_kinematics_model, name='EelKinematicsModel')        
-        theta_max = fish_system_model.declare_variable('theta_max', val=np.pi/24)
+        theta_max = fish_system_model.declare_variable('theta_max', val=np.pi/48)
 
     #########################################
     # add hydrodynamics model
@@ -163,53 +144,91 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     
 
 run_opt = True
-problem_name = 'full_opt_1028_3cases_mp'
-v_x_list = np.array([0.3, 0.9, 0.3])
-turn_list = np.array([False, False, True])
-tail_frequency_list = np.array([0.5458, 1.409, 0.225885])
-amplitude_max_list = np.array([0.0304861, 0.0305406, 0.]) 
+# problem_name = 'opt_2_V06_new_geo'
+problem_name = 'opt_2_V09_new_geo'
+# amplitude_scalar_0_var = 0.9
+# v_x_list = np.array([0.2]) # saved as v03...
+v_x_list = np.array([0.9])
+turn_list = np.array([False,])
+
+# amplitude_scalar_0_var = 0.26116 #0.3
+tail_frequency_list = np.array([0.48240,]) #0.3
+
+amplitude_scalar_0_var = 0.23576 #0.6
+# tail_frequency_list = np.array([0.95576,]) #0.6
+
+amplitude_scalar_0_var = 0.23576 #0.9
+tail_frequency_list = np.array([1.367,]) #0.9
+
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 
 num_time_steps=70
+
+
+
 
 fish_mp_model = csdl.Model()
 
 #################################
 ################################
 
-a = 0.51
-b = 0.08
-num_cp = 6
+L = 1.0
 num_pts_L = 41
 num_pts_R = 5
 num_period = 2
-x = np.linspace(1e-3, 1, num_cp)
-height =  b * np.sqrt(1 - ((x - a)/a)**2)
+# x1_val = 0.424
+# h1_val = 0.148
+# x2_val = 0.837
+# h2_val = 0.074
+
+x1_val = 0.424
+h1_val = 0.12173
+x2_val = 0.837
+h2_val = 0.0888
+# tail_width_val = 0.14218215
+tail_width_val = 0.11375
+
+head_pts = int(num_pts_L * x1_val*L / L)
+body_pts = int(num_pts_L * (x2_val-x1_val)*L / L)
+tail_pts = num_pts_L - head_pts - body_pts
+num_points_list = [head_pts, body_pts, tail_pts]
+fish_model_list = []
+# height =  b * np.sqrt(1 - ((x - a)/a)**2)
 # exit()
-# cps = fish_mp_model.create_input('control_points', val=height)
-a = fish_mp_model.create_input('a_coeff',val=0.51)
-b = fish_mp_model.create_input('b_coeff',val=0.08)
-coeff_const_0 = fish_mp_model.create_input('coeff_const_0', val=0.02)
-coeff_linear_0 = fish_mp_model.create_input('coeff_linear_0', val=-0.08)
 
-coeff_const_1 = fish_mp_model.create_input('coeff_const_1', val=0.02)
-coeff_linear_1 = fish_mp_model.create_input('coeff_linear_1', val=-0.08)
+num_cp_amp = 4
+x = np.linspace(0, 1, num_cp_amp)
+x_pts = np.linspace(0, 1, num_pts_L)
 
-theta_max = fish_mp_model.create_input('theta_max', val=np.pi/24)
+
+# height =  b * np.sqrt(1 - ((x - a)/a)**2)
+a_0 = 0.02
+a_1 = -0.08
+a_2 = 0.16
+amp_cp_vals =  np.array([a_0, a_1, a_2,0])
+
+# amplitude_scalar = fish_mp_model.create_input('amplitude_scalar_0',val=0.32294)
+amplitude_scalar = fish_mp_model.create_input('amplitude_max_0',val=amplitude_scalar_0_var)
+
+amplitude_cp = fish_mp_model.create_input('eel_amplitude_cp_0', shape=(num_cp_amp,),val=amp_cp_vals)
+
+
 
 for i in range(len(v_x_list)):
     tail_frequency_csdl = fish_mp_model.create_input(f'tail_frequency_{i}',val=tail_frequency_list[i])
-    amplitude_max = fish_mp_model.create_input(f'amplitude_max_{i}',val=amplitude_max_list[i])
+fish_mp_model.create_input('x1', val=x1_val)
+fish_mp_model.create_input('h1', val=h1_val)
+fish_mp_model.create_input('x2', val=x2_val)
+fish_mp_model.create_input('h2', val=h2_val)
+fish_mp_model.create_input('tail_width', val=tail_width_val)
 
-
-mass = 3
 
 for i in range(len(v_x_list)):
     # problem_name = 'kin_opt_0930_can_10'
     turn = turn_list[i]
     fish_system_model = run_fish_sim(num_pts_L=41, num_pts_R=5,num_time_steps=70,
-                v_x_val=v_x_list[i], tail_frequency_val=tail_frequency_list[i], amp_max=amplitude_max_list[i], 
-                #  v_x_val=v_x_val, tail_frequency_val=0.353, amp_max=0.2, 
+                v_x_val=v_x_list[i], tail_frequency_val=tail_frequency_list[i], 
+                num_points_list=num_points_list,
                 num_period=2, run_opt=run_opt,turn=turn, problem_name=problem_name)
     lower=0.2
 
@@ -225,7 +244,6 @@ for i in range(len(v_x_list)):
     avg_C_T = -csdl.sum(thrust)/(0.5*csdl.reshape(density[0,0],(1,))*v_x_list[i]**2*avg_area)/(num_time_steps-int(num_time_steps/num_period)*np_ignore)
     fish_system_model.register_output('avg_C_T', avg_C_T)
     thrust_coeff_avr = (avg_C_T - C_F)**2    
-    # fish_system_model.print_var(thrust_coeff_avr)
 
     com_x = fish_system_model.declare_variable('eel_CoM_x')*1.
 
@@ -235,6 +253,14 @@ for i in range(len(v_x_list)):
     fish_system_model.register_output('average_area', avg_area)
 
     if turn == True:
+        a = fish_system_model.declare_variable('a_coeff',val=0.51)
+        b = fish_system_model.declare_variable('b_coeff',val=0.08)
+        thickness_ratio = 10
+
+        L = fish_system_model.declare_variable('L', val=1.0)
+
+        mass = 997 * np.pi * (b**2) * (L**2) * (-1.*L + 3*a) / (3 * thickness_ratio * a**2)
+
         # theta_max = fish_system_model.declare_variable('theta_max', val=np.pi/24)
         v_x = fish_system_model.declare_variable('v_x')
         F_total = fish_system_model.declare_variable('panel_forces_all',shape=(num_time_steps,int((num_pts_L-1)*(num_pts_R-1)),3))[int(num_time_steps/num_period)*np_ignore:,:,:]
@@ -248,13 +274,20 @@ for i in range(len(v_x_list)):
     # fish_system_model.register_output('average_area', avg_area)
     # fish_system_model.add_constraint('average_area',equals=0.13907782)
     eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
-    tail_width = fish_system_model.register_output('tail_width', eel_height[-1])
+    # tail_width = fish_system_model.register_output('tail_width', eel_height[-1])
     head_width = fish_system_model.register_output('head_width', eel_height[0])
 
     
     fish_mp_model.add(fish_system_model, name=f'fish_system_model_{i}', promotes=[]) 
-    fish_mp_model.connect('a_coeff', f'fish_system_model_{i}'+'.a_coeff')
-    fish_mp_model.connect('b_coeff', f'fish_system_model_{i}'+'.b_coeff')
+    fish_model_list.append(f'fish_system_model_{i}')
+
+
+
+    fish_mp_model.connect('x1', f'fish_system_model_{i}'+'.x1')
+    fish_mp_model.connect('h1', f'fish_system_model_{i}'+'.h1')
+    fish_mp_model.connect('x2', f'fish_system_model_{i}'+'.x2')
+    fish_mp_model.connect('h2', f'fish_system_model_{i}'+'.h2')
+    fish_mp_model.connect('tail_width', f'fish_system_model_{i}'+'.tail_width')
 
     fish_mp_model.connect(f'tail_frequency_{i}', f'fish_system_model_{i}'+'.tail_frequency')
     if turn == True:
@@ -262,51 +295,48 @@ for i in range(len(v_x_list)):
 
     else:
         print(i, turn)
+        fish_mp_model.connect(f'eel_amplitude_cp_{i}', f'fish_system_model_{i}'+'.eel_amplitude_cp')
         fish_mp_model.connect(f'amplitude_max_{i}', f'fish_system_model_{i}'+'.amplitude_max')
-        fish_mp_model.connect(f'coeff_const_{i}', f'fish_system_model_{i}'+'.coeff_const')
-        fish_mp_model.connect(f'coeff_linear_{i}', f'fish_system_model_{i}'+'.coeff_linear') 
 
-    fish_mp_model.add_design_variable(f'tail_frequency_{i}',upper=lower*12,lower=lower*.5)
-    fish_mp_model.add_design_variable(f'amplitude_max_{i}',upper=lower*2,lower=lower*0.08)
+    fish_mp_model.add_design_variable(f'tail_frequency_{i}',upper=lower*12,lower=lower*.2)
+
+    # x1_val = 0.424
+    # h1_val = 0.148
+    # x2_val = 0.837
+    # h2_val = 0.074
+    # tail_width_val = 0.14218215
+
+    fish_mp_model.add_design_variable('h1',upper=0.148*1.2,lower=0.148*0.8)
+    fish_mp_model.add_design_variable('h2',upper=0.074*1.2,lower=0.074*0.8)
+    fish_mp_model.add_design_variable('tail_width',upper=0.14218215*1.2,lower=0.14218215*0.8)
+    
     if turn == False:
-        fish_mp_model.add_design_variable(f'coeff_const_{i}',upper=0.05,lower=0.01)
-        fish_mp_model.add_design_variable(f'coeff_linear_{i}',upper=-0.04,lower=-0.1)
+        # fish_mp_model.add_design_variable(f'amplitude_max_{i}',upper=lower*2,lower=lower*0.08)
+        # fish_mp_model.add_design_variable(f'coeff_const_{i}',upper=0.06,lower=0.01)
+        # fish_mp_model.add_design_variable(f'coeff_linear_{i}',upper=-0.04,lower=-0.1)
+        # fish_mp_model.add_design_variable('ratio',upper=5.,lower=2.)
+        fish_mp_model.add_design_variable(f'amplitude_max_{i}',upper=2.0,lower=0.1)
 
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.thrust_coeff_avr',equals=0.,scaler=1e2)
-    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.average_area',lower=0.13, upper=0.15)
+    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.average_area',lower=0.2084996*0.9, upper=0.2084996*1.1)
     # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.head_width',upper=0.01)
-    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.tail_width',lower=0.02)
+    # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.tail_width',lower=0.02)
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.eel_CoM_x',upper=0.6,lower=0.4)
 
     if turn == True:
         fish_mp_model.add_design_variable('theta_max',upper=np.pi/12,lower=np.pi/48)
-        fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.R',equals=3.5)
+        # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.R',equals=3)
     
 
-
-# fish_mp_model.add_design_variable('control_points',upper=0.2,lower=0.008)
-fish_mp_model.add_design_variable('a_coeff',upper=0.51*1.5,lower=0.505)
-fish_mp_model.add_design_variable('b_coeff',upper=0.08*5,lower=0.08*0.2)
-
-# eff0 = fish_mp_model.declare_variable('fish_system_model_0.efficiency',shape=(1,)) * 1.
-# eff1 = fish_mp_model.declare_variable('fish_system_model_1.efficiency',shape=(1,)) * 1.
-
 panel_total_power_0 = fish_mp_model.declare_variable('fish_system_model_0.panel_total_power') * 1.
-panel_total_power_1 = fish_mp_model.declare_variable('fish_system_model_1.panel_total_power') * 1.
-panel_total_power_2 = fish_mp_model.declare_variable('fish_system_model_2.panel_total_power') * 1.
 
-sum_power = panel_total_power_0 + panel_total_power_1 + panel_total_power_2
-fish_mp_model.register_output('sum_power', sum_power)
+sum_power = panel_total_power_0 #+ panel_total_power_1 + panel_total_power_2 + panel_total_power_3
+combined_objective = sum_power*1. #+ 0.25 * R_sq
 
+fish_mp_model.register_output('sum_power', combined_objective)
 
 fish_mp_model.add_objective('sum_power')
 
-
-# total_eff = sum(sum_power)    
-
-# fish_mp_model.register_output('sum_power', total_eff)    
-
-# sim = Simulator(fish_mp_model)
 simulator = Simulator(fish_mp_model, display_scripts=False)
 if run_opt == False:
     simulator.run()
@@ -328,9 +358,10 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=100,
-        Major_optimality=1e-7,
-        Major_feasibility=1e-7,
+        Major_iterations=80,
+        Major_optimality=1e-8,
+        # Major_feasibility=1e-7,
+        Major_feasibility=5e-8,
         append2file=True,
         Major_step_limit=.1,
     )
@@ -338,52 +369,67 @@ if run_opt == True:
     optimizer.solve()
     optimizer.print_results(summary_table=True)
 
-    fish_0 = simulator['fish_system_model_0.eel']
-    fish_1 = simulator['fish_system_model_1.eel']
-    a_coeff = simulator['a_coeff']
-    tail_frequency_0 = simulator['fish_system_model_0.tail_frequency']
-    amplitude_max_0 = simulator['fish_system_model_0.amplitude_max']
+if run_opt:
+    case_name = '_' + problem_name + '.csv'
+    
+    # List of available models (you can dynamically identify them)
+    available_models = fish_model_list
+    available_models = sorted(set(available_models))  # Remove duplicates and sort
+    
+    # Data and headers
+    data = []
+    header = []
+    
+    for model in available_models:
+        # Dynamically add each model's data and headers
+        try:
+            data.append(simulator[f"{model}.tail_frequency"].reshape(-1, 1))
+            header.append(f"{model}_tail_frequency")
+        except:
+            pass
+        
+        try:
+            data.append(simulator[f"{model}.amplitude_max"].reshape(-1, 1))
+            header.append(f"{model}_amplitude_max")
+        except:
+            pass
 
-    efficiency_0 = simulator['fish_system_model_0.efficiency']
-    panel_total_power_0 = simulator['fish_system_model_0.panel_total_power']
-    thrust_power_0 = simulator['fish_system_model_0.thrust_power']
+        try:
+            data.append(simulator[f"{model}.theta_max"].reshape(-1, 1))
+            header.append(f"{model}_theta_max")
+        except:
+            pass
 
-    tail_frequency_1 = simulator['fish_system_model_1.tail_frequency']
-    amplitude_max_1 = simulator['fish_system_model_1.amplitude_max']
-    efficiency_1 = simulator['fish_system_model_1.efficiency']
+        try:
+            data.append(simulator[f"{model}.efficiency"].reshape(-1, 1))
+            header.append(f"{model}_efficiency")
+        except:
+            pass
 
+        try:
+            data.append(simulator[f"{model}.panel_total_power"].reshape(-1, 1))
+            header.append(f"{model}_panel_total_power")
+        except:
+            pass
 
+        try:
+            data.append(simulator[f"{model}.thrust_power"].reshape(-1, 1))
+            header.append(f"{model}_thrust_power")
+        except:
+            pass
 
-# exit()
+    # Stack all the available data into a single array
+    if data:  # Check if there is any data to stack
+        data = np.hstack(data)
+    else:
+        data = np.array([])  # No data, create an empty array
+    
+    # Save all data to one CSV file with headers
+    if data.size > 0:
+        np.savetxt('results/all_data' + case_name, data, delimiter=",", header=",".join(header), comments='')
+    else:
+        print("No data to save.")
 
-plt.figure()
-plt.plot(total_forces_profile)
-plt.show()
-
-if run_opt == True:
-    case_name = '_'+problem_name+'.txt'
-    # np.savetxt('results/thrust'+case_name,thrust) 
-    np.savetxt('results/fish_system_model_0_tail_frequency'+case_name,simulator["fish_system_model_0.tail_frequency"].reshape(-1,1))
-    np.savetxt('results/fish_system_model_1_tail_frequency'+case_name,simulator["fish_system_model_1.tail_frequency"].reshape(-1,1))
-    np.savetxt('results/fish_system_model_2_tail_frequency'+case_name,simulator["fish_system_model_2.tail_frequency"].reshape(-1,1))
-    np.savetxt('results/fish_system_model_0_amplitude_max'+case_name,simulator["fish_system_model_0.amplitude_max"].reshape(-1,1))
-    np.savetxt('results/fish_system_model_1_amplitude_max'+case_name,simulator["fish_system_model_1.amplitude_max"].reshape(-1,1))
-    np.savetxt('results/fish_system_model_2_theta_max'+case_name,simulator["fish_system_model_2.theta_max"].reshape(-1,1))
-    np.savetxt('results/efficiency_0'+case_name,simulator["fish_system_model_0.efficiency"].reshape(-1,1))
-    np.savetxt('results/efficiency_1'+case_name,simulator["fish_system_model_1.efficiency"].reshape(-1,1))
-    np.savetxt('results/efficiency_2'+case_name,simulator["fish_system_model_2.efficiency"].reshape(-1,1))
-    np.savetxt('results/panel_total_power_0'+case_name,simulator["fish_system_model_0.panel_total_power"].reshape(-1,1))
-    np.savetxt('results/panel_total_power_1'+case_name,simulator["fish_system_model_1.panel_total_power"].reshape(-1,1))
-    np.savetxt('results/panel_total_power_2'+case_name,simulator["fish_system_model_2.panel_total_power"].reshape(-1,1))
-    np.savetxt('results/thrust_power_0'+case_name,simulator["fish_system_model_0.thrust_power"])
-    np.savetxt('results/thrust_power_1'+case_name,simulator["fish_system_model_1.thrust_power"])
-    np.savetxt('results/thrust_power_2'+case_name,simulator["fish_system_model_2.thrust_power"])
-    # np.savetxt('results/amplitude_max'+case_name,simulator["amplitude_max"].reshape(-1,1))
-    # np.savetxt('results/efficiency'+case_name,simulator["efficiency"].reshape(-1,1))
-    # np.savetxt('results/panel_total_power'+case_name,simulator["panel_total_power"].reshape(-1,1))
-    # np.savetxt('results/thrust_power'+case_name,simulator["thrust_power"])
-    np.savetxt('results/a'+case_name,simulator["a_coeff"].reshape(-1,1))
-    np.savetxt('results/b'+case_name,simulator["b_coeff"].reshape(-1,1))
 ##############################################################################################
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -403,13 +449,13 @@ def axis_equal(ax, x, y, z):
     ax.set_ylim(mid_y - max_range, mid_y + max_range)
     ax.set_zlim(mid_z - max_range, mid_z + max_range)  
 
-
+exit()
 plt.ion()  # Turn on interactive mode
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-
-name = 'fish_system_model_1.eel'
+model = 'fish_system_model_0'
+name = f"{model}.eel"
 filenames = []
 for i in range(num_time_steps):
     ax.clear()  # Clear previous points
