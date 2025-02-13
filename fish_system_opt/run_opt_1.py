@@ -11,7 +11,7 @@ from fish_system_opt.submodels.fish_turn_kinematics_model import EelKinematicsMo
 from VAST.core.submodels.friction_submodels.eel_viscous_force import EelViscousModel
 from VAST.core.vlm_llt.vlm_dynamic_old.VLM_prescribed_wake_solver import UVLMSolver
 from VAST.core.submodels.output_submodels.vlm_post_processing.efficiency import EfficiencyModel
-from fish_system_opt.submodels.com_model import CoMModel
+from fish_system_opt.submodels.com_model_carangifrom import CoMModel
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -137,21 +137,26 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     
 
 run_opt = True
-problem_name = 'kin_opt_1_v10'
+problem_name = 'kin_opt_1_v03_again'
 # amplitude_scalar_0_var = 0.9
 # v_x_list = np.array([0.2]) # saved as v03...
-v_x_list = np.array([1.])
-# v_x_list = np.array([0.6])
+v_x_list = np.array([.3])
+# v_x_list = np.array([1.])
+# v_x_list = np.array([0.5])
 turn_list = np.array([False,])
 
 # amplitude_scalar_0_var = 0.4 #0.2
 # tail_frequency_list = np.array([0.296,]) #0.2
 
-amplitude_scalar_0_var = 0.6 #0.6
+# amplitude_scalar_0_var = 0.6 #0.6
+amplitude_scalar_0_var =  0.3
+# amplitude_scalar_0_var =  0.2203364
 # tail_frequency_list = np.array([0.26225,]) #0.2
 # tail_frequency_list = np.array([0.505585,]) #0.2
 # tail_frequency_list = np.array([0.984,]) #0.2
-tail_frequency_list = np.array([1.223]) #0.2
+# tail_frequency_list = np.array([1.223]) #0.2
+# tail_frequency_list = np.array([1.46]) #0.2
+tail_frequency_list = np.array([.48]) #0.2
 
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 

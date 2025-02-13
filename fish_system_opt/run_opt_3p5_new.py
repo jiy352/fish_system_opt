@@ -145,15 +145,16 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     
 
 run_opt = True
-problem_name = 'full_opt_3_wo_turn'
+problem_name = 'full_opt_3p5_new_feb11'
 
-v_x_list = np.array([0.3,0.6,0.9])
+v_x_list = np.array([0.3,0.6,0.9,0.3])
 
-turn_list = np.array([False,False,False])
+turn_list = np.array([False,False,False,True])
 
 
 amplitude_scalar_var_list = np.array([2.,2.,2.])
-tail_frequency_list = np.array([0.34758,0.675905,1.000625]) #0.6
+# tail_frequency_list = np.array([0.34758,0.675905,1.000625,0.34758]) #0.6
+tail_frequency_list = np.array([0.40427,0.80538,1.20593,0.2422]) #0.6
 
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 
@@ -168,13 +169,16 @@ L = 1.0
 num_pts_L = 41
 num_pts_R = 5
 num_period = 2
+# x1_val = 0.424
+# h1_val = 0.148
+# x2_val = 0.837
+# h2_val = 0.074
+
 x1_val = 0.52
 h1_val = 0.137
 x2_val = 0.82598
 h2_val = 0.08
-# tail_width_val = 0.11375
 tail_width_val = 0.14218215
-# 0.9
 
 head_pts = int(num_pts_L * x1_val*L / L)
 body_pts = int(num_pts_L * (x2_val-x1_val)*L / L)
@@ -195,8 +199,7 @@ a_1 = -0.08
 a_2 = 0.16
 amp_cp_vals =  (a_0 + a_1 * x + a_2 * x**2 )
 
-ratio_val_org = amp_cp_vals[1:]/amp_cp_vals[:-1]
-ratio_val = np.array([ratio_val_org[0], 1.24472, 1.92771, 1., 1.03073]) # 0.9
+ratio_val = amp_cp_vals[1:]/amp_cp_vals[:-1]
 
 fish_mp_model.create_input('x1', val=x1_val)
 fish_mp_model.create_input('h1', val=h1_val)
@@ -209,21 +212,23 @@ for i in range(len(v_x_list)):
     tail_frequency_csdl = fish_mp_model.create_input(f'tail_frequency_{i}',val=tail_frequency_list[i])
 
 
+    if turn_list[i] == False:
+        ratio = fish_mp_model.create_input(f'ratio_{i}',val=ratio_val[1:])
 
-    ratio = fish_mp_model.create_input(f'ratio_{i}',val=ratio_val[1:])
+        # amplitude_scalar = fish_mp_model.create_input('amplitude_scalar_0',val=0.32294)
+        amplitude_scalar = fish_mp_model.create_input(f'amplitude_scalar_{i}',val=amplitude_scalar_var_list[i])
 
-    # amplitude_scalar = fish_mp_model.create_input('amplitude_scalar_0',val=0.32294)
-    amplitude_scalar = fish_mp_model.create_input(f'amplitude_scalar_{i}',val=amplitude_scalar_var_list[i])
-
-    amplitude_cp = fish_mp_model.create_output(f'eel_amplitude_cp_{i}', shape=(num_cp_amp,))
-    pos_0 = fish_mp_model.create_input(f'eel_amplitude_cp_{i}_0',val=amp_cp_vals[0]) * amplitude_scalar
-    pos_1 = fish_mp_model.create_input(f'eel_amplitude_cp_{i}_1',val=amp_cp_vals[1]) * amplitude_scalar
-    amplitude_cp[0] = pos_0 
-    amplitude_cp[1] = pos_1 
-    amplitude_cp[2] = pos_1 * ratio[0] 
-    amplitude_cp[3] = pos_1 * ratio[0] * ratio[1] 
-    amplitude_cp[4] = pos_1 * ratio[0] * ratio[1] * ratio[2] 
-    amplitude_cp[5] = pos_1 * ratio[0] * ratio[1] * ratio[2] * ratio[3] 
+        amplitude_cp = fish_mp_model.create_output(f'eel_amplitude_cp_{i}', shape=(num_cp_amp,))
+        pos_0 = fish_mp_model.create_input(f'eel_amplitude_cp_{i}_0',val=amp_cp_vals[0]) * amplitude_scalar
+        pos_1 = fish_mp_model.create_input(f'eel_amplitude_cp_{i}_1',val=amp_cp_vals[1]) * amplitude_scalar
+        amplitude_cp[0] = pos_0 
+        amplitude_cp[1] = pos_1 
+        amplitude_cp[2] = pos_1 * ratio[0] 
+        amplitude_cp[3] = pos_1 * ratio[0] * ratio[1] 
+        amplitude_cp[4] = pos_1 * ratio[0] * ratio[1] * ratio[2] 
+        amplitude_cp[5] = pos_1 * ratio[0] * ratio[1] * ratio[2] * ratio[3] 
+    else:
+        theta_max = fish_mp_model.create_input('theta_max', val=np.pi/24)
 
 
 for i in range(len(v_x_list)):
@@ -256,15 +261,15 @@ for i in range(len(v_x_list)):
     fish_system_model.register_output('average_area', avg_area)
 
     if turn == True:
-        a = fish_system_model.declare_variable('a_coeff',val=0.51)
-        b = fish_system_model.declare_variable('b_coeff',val=0.08)
-        thickness_ratio = 10
+        # a = fish_system_model.declare_variable('a_coeff',val=0.51)
+        # b = fish_system_model.declare_variable('b_coeff',val=0.08)
+        # thickness_ratio = 10
 
         L = fish_system_model.declare_variable('L', val=1.0)
 
-        mass = 997 * np.pi * (b**2) * (L**2) * (-1.*L + 3*a) / (3 * thickness_ratio * a**2)
+        mass = fish_system_model.declare_variable('mass')
 
-        # theta_max = fish_system_model.declare_variable('theta_max', val=np.pi/24)
+        theta_max = fish_system_model.declare_variable('theta_max', val=np.pi/24)
         v_x = fish_system_model.declare_variable('v_x')
         F_total = fish_system_model.declare_variable('panel_forces_all',shape=(num_time_steps,int((num_pts_L-1)*(num_pts_R-1)),3))[int(num_time_steps/num_period)*np_ignore:,:,:]
         Fy = csdl.sum(F_total[:,:,1])/(num_time_steps)
@@ -310,6 +315,7 @@ for i in range(len(v_x_list)):
     # h2_val = 0.074
     # tail_width_val = 0.14218215
 
+
     
     if turn == False:
         # fish_mp_model.add_design_variable(f'amplitude_max_{i}',upper=lower*2,lower=lower*0.08)
@@ -333,15 +339,18 @@ fish_mp_model.add_design_variable('x1',upper=0.6,lower=0.424*0.7)
 fish_mp_model.add_design_variable('x2',upper=0.9,lower=0.837*0.7)
 fish_mp_model.add_design_variable('h1',upper=0.148*1.3,lower=0.148*0.7)
 fish_mp_model.add_design_variable('h2',upper=0.074*1.3,lower=0.074*0.7)
-# fish_mp_model.add_design_variable('tail_width',upper=0.14218215*1.2,lower=0.14218215*0.8)
 
 panel_total_power_list = []    
 for i in range(len(v_x_list)):
-    panel_total_power = fish_mp_model.declare_variable(f'fish_system_model_{i}.panel_total_power') * 1.
-    panel_total_power_list.append(panel_total_power)
+    # panel_total_power = fish_mp_model.declare_variable(f'fish_system_model_{i}.panel_total_power') * 1.
+    panel_total_power_div = fish_mp_model.declare_variable(f'fish_system_model_{i}.panel_total_power') / fish_mp_model.declare_variable(f'fish_system_model_{i}.v_x') * 1.
+    panel_total_power_list.append(panel_total_power_div)
 
 sum_power = sum(panel_total_power_list)
-combined_objective = sum_power*1. #+ 0.25 * R_sq
+lmd = .8
+R = fish_mp_model.declare_variable('fish_system_model_3.R') * 1.
+R_sq = R**2**0.5
+combined_objective = sum_power*lmd + (1-lmd) * R_sq
 
 fish_mp_model.register_output('sum_power', combined_objective)
 
@@ -368,28 +377,15 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=22,
+        Major_iterations=150,
         Major_optimality=1e-7,
-        Major_feasibility=1e-6,
+        Major_feasibility=1e-7,
         append2file=True,
         Major_step_limit=.1,
     )
 
     optimizer.solve()
     optimizer.print_results(summary_table=True)
-
-
-#######################################################
-# print all the values of the design variables
-#######################################################
-# Get the list of keys
-keys = simulator.dv_keys
-# Determine the maximum length of any key
-max_key_length = max(len(k) for k in keys)
-# Print each key-value pair in aligned columns
-for k in keys:
-    print(f"{k:<{max_key_length}}  {simulator[k]}")
-
 
 if run_opt:
     case_name = '_' + problem_name + '.csv'

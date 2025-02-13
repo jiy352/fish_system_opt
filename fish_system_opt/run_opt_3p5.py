@@ -144,16 +144,16 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     ##############################################
     
 
-run_opt = True
-problem_name = 'full_opt_3_v03'
+run_opt = False
+problem_name = 'full_opt_3p5'
 
 v_x_list = np.array([0.3,0.6,0.9,0.3])
 
 turn_list = np.array([False,False,False,True])
 
 
-amplitude_scalar_var_list = np.array([0.7,0.75,0.75])
-tail_frequency_list = np.array([0.4001,0.77816,1.15635]) #0.6
+amplitude_scalar_var_list = np.array([2.,2.,2.])
+tail_frequency_list = np.array([0.34758,0.675905,1.000625]) #0.6
 
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 
@@ -168,10 +168,15 @@ L = 1.0
 num_pts_L = 41
 num_pts_R = 5
 num_period = 2
-x1_val = 0.424
-h1_val = 0.148
-x2_val = 0.837
-h2_val = 0.074
+# x1_val = 0.424
+# h1_val = 0.148
+# x2_val = 0.837
+# h2_val = 0.074
+
+x1_val = 0.52
+h1_val = 0.137
+x2_val = 0.82598
+h2_val = 0.08
 tail_width_val = 0.14218215
 
 head_pts = int(num_pts_L * x1_val*L / L)

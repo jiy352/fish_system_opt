@@ -153,7 +153,7 @@ turn_list = np.array([True])
 
 
 amplitude_scalar_var_list = np.array([0.75])
-tail_frequency_list = np.array([0.4001,]) #0.6
+tail_frequency_list = np.array([0.3315,]) #0.6
 
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 
@@ -200,6 +200,7 @@ fish_mp_model.create_input('h1', val=h1_val)
 fish_mp_model.create_input('x2', val=x2_val)
 fish_mp_model.create_input('h2', val=h2_val)
 fish_mp_model.create_input('tail_width', val=tail_width_val)
+fish_mp_model.create_input('theta_max', val=np.pi/12)
 
 
 for i in range(len(v_x_list)):
@@ -266,6 +267,7 @@ for i in range(len(v_x_list)):
         F_total = fish_system_model.declare_variable('panel_forces_all',shape=(num_time_steps,int((num_pts_L-1)*(num_pts_R-1)),3))[int(num_time_steps/num_period)*np_ignore:,:,:]
         Fy = csdl.sum(F_total[:,:,1])/(num_time_steps)
         R = -mass * v_x**2 / Fy
+        fish_system_model.register_output('Fy', Fy)
         fish_system_model.register_output('R', R)
 
     # fish_system_model.add_constraint('thrust_coeff_avr',equals=0.,scaler=1e2)
@@ -273,6 +275,7 @@ for i in range(len(v_x_list)):
     # #########################################
     # fish_system_model.register_output('average_area', avg_area)
     # fish_system_model.add_constraint('average_area',equals=0.13907782)
+    fish_system_model.add_constraint('R',equals=2)
     eel_height = fish_system_model.declare_variable('eel_height',shape=(num_pts_L,))
     # tail_width = fish_system_model.register_output('tail_width', eel_height[-1])
     head_width = fish_system_model.register_output('head_width', eel_height[0])

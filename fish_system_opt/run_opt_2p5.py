@@ -145,18 +145,30 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     
 
 run_opt = True
-problem_name = 'full_opt_2p5_v03'
+problem_name = 'full_opt_2p5_v09'
 
 
-v_x_list = np.array([0.3])
+v_x_list = np.array([0.9])
 
 turn_list = np.array([False,])
 
 
-amplitude_scalar_var_list = np.array([0.7,])
-tail_frequency_list = np.array([0.4001,]) #0.3
+# amplitude_scalar_var_list = np.array([2.,])
+# tail_frequency_list = np.array([0.34976,]) #0.3
+# tail_frequency_list = np.array([0.5,]) #0.3
+
+# amplitude_scalar_var_list = np.array([0.7,])
+# tail_frequency_list = np.array([0.782,]) #0.6
 
 
+# amplitude_scalar_var_list = np.array([0.7,])
+# tail_frequency_list = np.array([1.1607,]) #0.9
+
+# amplitude_scalar_var_list = np.array([2.])
+# tail_frequency_list = np.array([0.675912,]) #0.9
+
+amplitude_scalar_var_list = np.array([2.])
+tail_frequency_list = np.array([1.09252,]) #0.9
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 
 num_time_steps=70
@@ -170,11 +182,34 @@ L = 1.0
 num_pts_L = 41
 num_pts_R = 5
 num_period = 2
-x1_val = 0.424
-h1_val = 0.148
-x2_val = 0.837
-h2_val = 0.074
+# x1_val = 0.56270
+# h1_val = 0.13915
+# x2_val = 0.90000
+# h2_val = 0.05180
+# tail_width_val = 0.14218215
+# 0.3
+
+# x1_val = 0.52
+# h1_val = 0.137
+# x2_val = 0.82598
+# h2_val = 0.08
+# # tail_width_val = 0.11375
+# tail_width_val = 0.14218215
+
+# x1_val = 0.58590
+# h1_val = 0.137
+# x2_val = 0.82598
+# h2_val = 0.08
+# # tail_width_val = 0.11375
+# tail_width_val = 0.14218215
+
+x1_val = 0.2968
+x2_val = 0.5859
+h1_val = 0.1036
+h2_val = 0.09339
 tail_width_val = 0.14218215
+
+# 0.9
 
 head_pts = int(num_pts_L * x1_val*L / L)
 body_pts = int(num_pts_L * (x2_val-x1_val)*L / L)
@@ -195,8 +230,10 @@ a_1 = -0.08
 a_2 = 0.16
 amp_cp_vals =  (a_0 + a_1 * x + a_2 * x**2 )
 
-ratio_val = amp_cp_vals[1:]/amp_cp_vals[:-1]
+ratio_val_org = amp_cp_vals[1:]/amp_cp_vals[:-1]
 
+# ratio_val = np.array([ratio_val_org[0], 1.49939, 1.52193, 1., 1.00977]) # 0.3
+ratio_val = np.array([ratio_val_org[0], 1.,1.01609, 1.47223, 1.07653]) # 0.9
 
 
 
@@ -309,9 +346,12 @@ for i in range(len(v_x_list)):
     # h2_val = 0.074
     # tail_width_val = 0.14218215
 
-    fish_mp_model.add_design_variable(f'h1_{i}',upper=0.148*1.2,lower=0.148*0.8)
-    fish_mp_model.add_design_variable(f'h2_{i}',upper=0.074*1.2,lower=0.074*0.8)
-    fish_mp_model.add_design_variable(f'tail_width_{i}',upper=0.14218215*1.2,lower=0.14218215*0.8)
+    # fish_mp_model.add_design_variable(f'x1_{i}',upper=0.424*1.3,lower=0.424*0.7)
+    fish_mp_model.add_design_variable(f'x1_{i}',upper=0.6,lower=0.424*0.7)
+    fish_mp_model.add_design_variable(f'x2_{i}',upper=0.9,lower=0.837*0.7)
+    fish_mp_model.add_design_variable(f'h1_{i}',upper=0.148*1.3,lower=0.148*0.7)
+    fish_mp_model.add_design_variable(f'h2_{i}',upper=0.074*1.3,lower=0.074*0.7)
+    # fish_mp_model.add_design_variable(f'tail_width_{i}',upper=0.14218215*1.3,lower=0.14218215*0.7)
     
     if turn == False:
         # fish_mp_model.add_design_variable(f'amplitude_max_{i}',upper=lower*2,lower=lower*0.08)
@@ -323,9 +363,10 @@ for i in range(len(v_x_list)):
 
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.thrust_coeff_avr',equals=0.,scaler=1e2)
     fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.average_area',lower=0.2084996*0.9, upper=0.2084996*1.1)
+    # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.mass',lower=14.01166365*0.9, upper=14.01166365*0.9*1.1)
     # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.head_width',upper=0.01)
     # fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.tail_width',lower=0.02)
-    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.eel_CoM_x',upper=0.6,lower=0.4)
+    fish_mp_model.add_constraint(f'fish_system_model_{i}'+'.eel_CoM_x',upper=0.55,lower=0.45)
 
     if turn == True:
         fish_mp_model.add_design_variable('theta_max',upper=np.pi/12,lower=np.pi/48)
@@ -363,7 +404,7 @@ if run_opt == True:
     # optimizer = SLSQP(prob, maxiter=1)
     optimizer = SNOPT(
         prob, 
-        Major_iterations=100,
+        Major_iterations=140,
         Major_optimality=1e-7,
         Major_feasibility=1e-7,
         append2file=True,
@@ -374,6 +415,17 @@ if run_opt == True:
     optimizer.print_results(summary_table=True)
 
 if run_opt:
+    #######################################################
+    # print all the values of the design variables
+    #######################################################
+    # Get the list of keys
+    keys = simulator.dv_keys
+    # Determine the maximum length of any key
+    max_key_length = max(len(k) for k in keys)
+    # Print each key-value pair in aligned columns
+    for k in keys:
+        print(f"{k:<{max_key_length}}  {simulator[k]}")
+
     case_name = '_' + problem_name + '.csv'
     
     # List of available models (you can dynamically identify them)

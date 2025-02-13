@@ -60,18 +60,9 @@ class FishGeometryModel(csdl.Model):
         i = (-2*tail_width*x2 + 2*h2*x2)/(L**2 - 2*L*x2 + x2**2)
         j = (L**2*h2 - 2*L*h2*x2 + tail_width*x2**2)/(L**2 - 2*L*x2 + x2**2)
 
-        # self.register_output('a', a)
-        # self.register_output('b', b)
-        # self.register_output('d', d)
-        # self.register_output('e', e)
-        # self.register_output('f', f)
-        # self.register_output('g', g)
-        # self.register_output('h', h)
-        # self.register_output('i', i)
-        # self.register_output('j', j)
 
-        x_head = np.linspace(start_epsilon, L, head_pts,endpoint=False) * csdl.expand(x1,shape=head_pts) # figure out whether this works
-        x_body = np.linspace(0, L, body_pts,endpoint=False) * csdl.expand((x2 - x1),shape=body_pts) + csdl.expand(x1,shape=body_pts)
+        x_head = np.linspace(start_epsilon, L, head_pts,endpoint=True) * csdl.expand(x1,shape=head_pts) # figure out whether this works
+        x_body = np.linspace(0, L, body_pts,endpoint=True) * csdl.expand((x2 - x1),shape=body_pts) + csdl.expand(x1,shape=body_pts)
         x_tail = np.linspace(0, L, tail_pts) * csdl.expand((L - x2),shape=tail_pts) + csdl.expand(x2,shape=tail_pts)
         self.register_output('x_head', x_head)
         self.register_output('x_body', x_body)
@@ -96,11 +87,6 @@ class FishGeometryModel(csdl.Model):
         rigid_fish_mesh[head_pts+body_pts:,:,0] = csdl.expand(x_tail,shape=(tail_pts,num_pts_R,1),indices='i->ijk')
         rigid_fish_mesh[head_pts+body_pts:,:,2] = csdl.reshape(np.outer(np.arange(num_pts_R) / (num_pts_R-1) - 1/2, np.ones(tail_pts)).T * tail_height_profile_expand *2, new_shape=(tail_pts,num_pts_R,1))
 
-        # eel_height = self.compute_fish_height(x_head, x_body, x_tail, L,x1, h1, x2, h2, tail_width)
-
-        # rigid_fish_mesh = self.create_output(surface_name+'_rigid_mesh', val=np.zeros(surface_shape))
-
-        # self.compute_rigid_fish_mesh(x, eel_height,rigid_fish_mesh)
 
     def compute_fish_head_profile(self, x_head, a,b):
         a_expand = csdl.expand(a,shape=x_head.shape)
@@ -139,20 +125,20 @@ if __name__ == '__main__':
     # h2_val_list = [0.0518,0.0592,0.05954]
     # tail_width_val_list = [0.14218215,0.14218215,0.14218215,]
 
-    # x1_val_list = [0.5627,0.49282,0.2968]
-    # x2_val_list = [0.9,0.88256,0.5859]
-    # h1_val_list = [0.13915,0.11669,0.1036]
-    # h2_val_list = [0.0518,0.0962,0.09339]
-    # tail_width_val_list = [0.14218215,0.14218215,0.14218215,]
+    x1_val_list = [0.5627,0.49282,0.467]
+    x2_val_list = [0.9,0.88256,0.612]
+    h1_val_list = [0.13915,0.11669,0.109]
+    h2_val_list = [0.0518,0.0962,0.096]
+    tail_width_val_list = [0.14218215,0.14218215,0.14218215,]
 
-    # color_list = ['r','g','b'] 
+    color_list = ['r','g','b'] 
 
-    x1_val_list = [0.424]
-    h1_val_list = [0.148]
-    x2_val_list = [0.837]
-    h2_val_list = [0.074]
-    tail_width_val_list = [0.14218215]
-    color_list = ['black'] * 3
+    # x1_val_list = [0.424]
+    # h1_val_list = [0.148]
+    # x2_val_list = [0.837]
+    # h2_val_list = [0.074]
+    # tail_width_val_list = [0.14218215]
+    # color_list = ['black'] * 3
 
     head_pts = int(num_pts_L * x1_val_list[0]*L / L)
     body_pts = int(num_pts_L * (x2_val_list[0]-x1_val_list[0])*L / L)
@@ -162,6 +148,12 @@ if __name__ == '__main__':
 
     import numpy as np
     import python_csdl_backend
+    import matplotlib.pyplot as plt
+    plt.rcParams['text.usetex'] = False
+    from matplotlib.lines import Line2D
+
+    plt.figure(figsize=(6.4, 6))
+
     for i in range(len(x1_val_list)):
         x1_val = x1_val_list[i]
         h1_val = h1_val_list[i]
@@ -189,31 +181,10 @@ if __name__ == '__main__':
         simulator = python_csdl_backend.Simulator(fish_geometry_model, display_scripts=False)
         simulator.run()
 
-        # simulator.check_partials(compact_print=True)
-
-        # print('print inputs', simulator["x1"], simulator["h1"])
-        # print('print head coefficients a', simulator["a"])
-        # print('print head coefficients b', simulator["b"])
-        # print('print body coefficients d', simulator["d"])
-        # print('print body coefficients e', simulator["e"])
-        # print('print body coefficients f', simulator["f"])
-        # print('print body coefficients g', simulator["g"])
-        # print('print tail coefficients h', simulator["h"])
-        # print('print tail coefficients i', simulator["i"])
-        # print('print tail coefficients j', simulator["j"])
-
-        # print("print points along the fish")
-        # print(simulator["x_head"])
-        # print(simulator["x_body"])
-        # print(simulator["x_tail"])
         def R(x, L=1):
             return 0.14 * np.sin(2 * np.pi * x / 1.6) + 0.0008 * L * (np.exp(2 * np.pi * x / 1.1) - 1)
 
-        
 
-        import matplotlib.pyplot as plt
-        plt.rcParams['text.usetex'] = False
-        from matplotlib.lines import Line2D
 
         # # plot head height profile
         # x_full = np.linspace(0, L, num_pts_L)
@@ -225,7 +196,6 @@ if __name__ == '__main__':
         tail_height_profile = simulator["tail_height_profile"]
 
 
-        # plt.figure(figsize=(6, 3))
         # plt.plot(x_full, R(x_full), label="Fish literature")
         # plt.plot(x_full, -R(x_full), label="Fish literature")
         # plt.plot(x_head, head_height_profile, '.-', label="Head quadratic")
@@ -245,111 +215,53 @@ if __name__ == '__main__':
         # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-', color='black')
         # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-', color='black')
 
-        plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-',color=color_list[i],linewidth=0.4)
-        plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-',color=color_list[i],linewidth=0.4)
+        # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-',color=color_list[i],linewidth=0.4)
+        # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-',color=color_list[i],linewidth=0.4)
         plt.axis('equal')
 
-    # legend_handles = [
-    #     Line2D([0], [0], color=color_list[0], lw=2, label='$V_x=0.3$ m/s'),
-    #     Line2D([0], [0], color=color_list[1], lw=2, label='$V_x=0.6$ m/s'),
-    #     Line2D([0], [0], color=color_list[2], lw=2, label='$V_x=0.9$ m/s')
-    # ]  
-    plt.plot(mesh[:,0,0], R(mesh[:,0,0]), color = 'blue',linewidth=3)
-    plt.plot(x_head, head_height_profile,'o' ,markerfacecolor='none',label="Head quadratic",linewidth=3)
-    plt.plot(x_body, body_height_profile, 'o',markerfacecolor='none',label="Body cubic",linewidth=3)
-    plt.plot(x_tail, tail_height_profile,'o', markerfacecolor='none',label="Tail quadratic",linewidth=3)
+        x_top_profile = mesh[:,-1,0]
+        z_top_profile = mesh[:,-1,2]
+        z_bottom_profile = mesh[:,0,2]
 
-    legend_handles = [
-        Line2D([0], [0], color='blue', lw=2, label='Head quadratic function'),
-        Line2D([0], [0], color='orange', lw=2, label='Head quadratic function'),
-        Line2D([0], [0], color='green', lw=2, label='Head quadratic function'),
-        Line2D([0], [0], color='blue', lw=2, label='Fish height profile from [33]'),
-        # Line2D([0], [0], color=colsor_list[2], lw=2, label='$V_x=0.9$ m/s')
-    ] 
+        # plot the top and bottom profiles
+        plt.plot(x_top_profile, z_top_profile+i*0.3, color=color_list[i])
+        plt.plot(x_top_profile, z_bottom_profile+i*0.3, color=color_list[i])
 
-    plt.legend(handles=legend_handles, loc='best', fontsize=12)  
+  
 
-    # plt.figure(figsize=(6, 3))
-    # plt.plot(x_head, head_height_profile, '.-', label="Head quadratic")
-    # plt.plot(x_body, body_height_profile, '.-', label="Body cubic")
-    # plt.plot(x_tail, tail_height_profile, '.-', label="Tail quadratic")
-    # plt.show()
-
-    # # mesh = simulator['fish_rigid_mesh'].copy()
-    # mesh = simulator['fish_system_model_0.eel_rigid_mesh'].copy()
-    # # print('mesh', mesh[:,-1,2])
-    # # add two subplots veritcally
+        # "Fill" between them
+        plt.fill_between(
+            x_top_profile, 
+            z_top_profile+i*0.3, 
+            z_bottom_profile+i*0.3,
+            color='grey', alpha=0.3
+        )
 
 
-    # # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-', color='black')
-    # # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-', color='black')
-    # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-',color='black',linewidth=0.4)
-    # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-',color='black',linewidth=0.4)
-    # plt.axis('equal')
-    # plt.show()
+
+        plt.axis('equal')
+        # plt.xlim(0, 1.)
+        legend_handles = [
+            Line2D([0], [0], color='red',  lw=2, label='$v_x = 0.3$ m/s'),
+            Line2D([0], [0], color='grey', lw=2, label='$v_x = 0.6$ m/s'),
+            Line2D([0], [0], color='blue', lw=2, label='$v_x = 0.9$ m/s'),
+            # Line2D([0], [0], color='black', linestyle='--',lw=2, label='Ref. [33]'),
+            # Line2D([0], [0], color=colsor_list[2], lw=2, label='$V_x=0.9$ m/s')
+        ] 
+        plt.xlabel('x (m)',fontsize=12)
+        plt.ylabel('Height (m)',fontsize=12)
+        plt.tight_layout()
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.legend(handles=legend_handles, loc='upper center', fontsize=12, ncol=3) 
 
 
-    x_top_profile = mesh[:,-1,0]
-    z_top_profile = mesh[:,-1,2]
+        x_val = 1
+        y_top_val = z_top_profile[-1]
+        y_bottom_val = z_bottom_profile[-1]
 
-    x_bottom_profile = mesh[:,0,0]
-    z_bottom_profile = mesh[:,0,2]
-
-
-    plt.figure(figsize=(8, 4))
-    plt.plot(x_top_profile[:head_pts], z_top_profile[:head_pts], 'r-',linewidth=1)        # top edge
-    plt.plot(x_bottom_profile[:head_pts], z_bottom_profile[:head_pts], 'r-',linewidth=1)  # bottom edge
-
-    plt.plot(x_top_profile[head_pts:head_pts+body_pts], z_top_profile[head_pts:head_pts+body_pts], 'grey',linewidth=1)        # top edge
-    plt.plot(x_bottom_profile[head_pts:head_pts+body_pts], z_bottom_profile[head_pts:head_pts+body_pts], 'grey',linewidth=1)  # bottom edge
-
-    plt.plot(x_top_profile[head_pts+body_pts:], z_top_profile[head_pts+body_pts:], 'b-',linewidth=1)        # top edge
-    plt.plot(x_bottom_profile[head_pts+body_pts:], z_bottom_profile[head_pts+body_pts:], 'b-',linewidth=1)  # bottom edge
-
-    plt.plot(mesh[:,0,0], R(mesh[:,0,0])+0.06,'--', color = 'black',markerfacecolor='none',linewidth=1.5)
-    plt.plot(x_head[0], head_height_profile[0],'o',color ='black' ,markerfacecolor='none',linewidth=3)
-    plt.plot(x_head[-1], head_height_profile[-1],'o',color ='black' ,markerfacecolor='none',label="Head quadratic",linewidth=3)
-    # plt.plot(x_body[0], body_height_profile[0], 'o', markerfacecolor='none',linewidth=3)
-    plt.plot(x_body[-1], body_height_profile[-1],'o',color ='black',markerfacecolor='none',label="Body cubic",linewidth=3)
-    plt.plot(x_tail[0], tail_height_profile[0],'o',color ='black',markerfacecolor='none',label="Tail quadratic",linewidth=3)
-    plt.plot(x_tail[-1], tail_height_profile[-1],'o',color ='black',markerfacecolor='none',label="Tail quadratic",linewidth=3)
+        # Plot the short vertical line from top to bottom at x=1
+        plt.plot([x_val, x_val], [y_top_val+i*0.3, y_bottom_val+i*0.3], color=color_list[i])
 
 
-    # "Fill" between them
-    plt.fill_between(
-        x_top_profile[:head_pts], 
-        z_top_profile[:head_pts], 
-        z_bottom_profile[:head_pts],
-        color='red', alpha=0.3
-    )
-    plt.fill_between(
-        x_top_profile[head_pts:head_pts+body_pts], 
-        z_top_profile[head_pts:head_pts+body_pts], 
-        z_bottom_profile[head_pts:head_pts+body_pts],
-        color='gray', alpha=0.3
-    )
-    plt.fill_between(
-        x_top_profile[head_pts+body_pts:], 
-        z_top_profile[head_pts+body_pts:], 
-        z_bottom_profile[head_pts+body_pts:],
-        color='blue', alpha=0.3,
-        # label='Tail quadratic curve',
-    )
-
-    plt.ylim(-0.25,0.25)
-
-    plt.axis('equal')
-    legend_handles = [
-        Line2D([0], [0], color='red', lw=2, label='Head'),
-        Line2D([0], [0], color='grey', lw=2, label='Body'),
-        Line2D([0], [0], color='blue', lw=2, label='Tail'),
-        Line2D([0], [0], color='black', linestyle='--',lw=2, label='Ref. [33]'),
-        # Line2D([0], [0], color=colsor_list[2], lw=2, label='$V_x=0.9$ m/s')
-    ] 
-    plt.xlabel('x (m)',fontsize=12)
-    plt.ylabel('Height (m)',fontsize=12)
-    plt.tight_layout()
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.legend(handles=legend_handles, loc='best', fontsize=12, ncol=4) 
     plt.show()

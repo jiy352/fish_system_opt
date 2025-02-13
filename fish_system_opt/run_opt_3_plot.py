@@ -144,7 +144,7 @@ def run_fish_sim(num_pts_L, num_pts_R,num_time_steps, v_x_val, tail_frequency_va
     ##############################################
     
 
-run_opt = True
+run_opt = False
 problem_name = 'full_opt_3_wo_turn'
 
 v_x_list = np.array([0.3,0.6,0.9])
@@ -152,8 +152,8 @@ v_x_list = np.array([0.3,0.6,0.9])
 turn_list = np.array([False,False,False])
 
 
-amplitude_scalar_var_list = np.array([2.,2.,2.])
-tail_frequency_list = np.array([0.34758,0.675905,1.000625]) #0.6
+amplitude_scalar_var_list = np.array([2.,1.88525,2.])
+tail_frequency_list = np.array([0.34976, 0.71972, 1.04607]) #0.6
 
 # for turn case amp_max does not goes into the model, only frequency and theta_max matters
 
@@ -168,13 +168,28 @@ L = 1.0
 num_pts_L = 41
 num_pts_R = 5
 num_period = 2
-x1_val = 0.52
-h1_val = 0.137
-x2_val = 0.82598
-h2_val = 0.08
-# tail_width_val = 0.11375
+
+# x1_val = 0.5627
+# x2_val = 0.9
+# h1_val = 0.13915
+# h2_val = 0.0518
+# tail_width_val = 0.14218215
+# 0.3
+
+# x1_val = 0.49282
+# x2_val = 0.88256
+# h1_val = 0.11669
+# h2_val = 0.0962
+# tail_width_val = 0.14218215
+# # 0.6
+
+x1_val = 0.2968
+x2_val = 0.5859
+h1_val = 0.1036
+h2_val = 0.09339
 tail_width_val = 0.14218215
 # 0.9
+
 
 head_pts = int(num_pts_L * x1_val*L / L)
 body_pts = int(num_pts_L * (x2_val-x1_val)*L / L)
@@ -196,7 +211,16 @@ a_2 = 0.16
 amp_cp_vals =  (a_0 + a_1 * x + a_2 * x**2 )
 
 ratio_val_org = amp_cp_vals[1:]/amp_cp_vals[:-1]
-ratio_val = np.array([ratio_val_org[0], 1.24472, 1.92771, 1., 1.03073]) # 0.9
+# ratio_val = np.array([ratio_val_org[0], 1.24472, 1.92771, 1., 1.03073]) # 0.9
+
+ratio_val_03 = np.array([ratio_val_org[0], 1.24472, 1.92771, 1., 1.03073]) # 0.3
+ratio_val_06 = np.array([ratio_val_org[0], 1.01654, 1.75515, 1.00295, 1.02041]) # 0.6
+ratio_val_09 = np.array([ratio_val_org[0], 1, 1.01609, 1.47223, 1.07653]) # 0.9
+
+# exit()
+
+# concatenate all the ratios
+ratio_val = np.concatenate((ratio_val_03, ratio_val_06, ratio_val_09)).reshape(-1,5)
 
 fish_mp_model.create_input('x1', val=x1_val)
 fish_mp_model.create_input('h1', val=h1_val)
@@ -210,7 +234,7 @@ for i in range(len(v_x_list)):
 
 
 
-    ratio = fish_mp_model.create_input(f'ratio_{i}',val=ratio_val[1:])
+    ratio = fish_mp_model.create_input(f'ratio_{i}',val=ratio_val[i][1:])
 
     # amplitude_scalar = fish_mp_model.create_input('amplitude_scalar_0',val=0.32294)
     amplitude_scalar = fish_mp_model.create_input(f'amplitude_scalar_{i}',val=amplitude_scalar_var_list[i])
@@ -370,26 +394,13 @@ if run_opt == True:
         prob, 
         Major_iterations=22,
         Major_optimality=1e-7,
-        Major_feasibility=1e-6,
+        Major_feasibility=1e-7,
         append2file=True,
         Major_step_limit=.1,
     )
 
     optimizer.solve()
     optimizer.print_results(summary_table=True)
-
-
-#######################################################
-# print all the values of the design variables
-#######################################################
-# Get the list of keys
-keys = simulator.dv_keys
-# Determine the maximum length of any key
-max_key_length = max(len(k) for k in keys)
-# Print each key-value pair in aligned columns
-for k in keys:
-    print(f"{k:<{max_key_length}}  {simulator[k]}")
-
 
 if run_opt:
     case_name = '_' + problem_name + '.csv'

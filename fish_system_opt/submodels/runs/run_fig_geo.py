@@ -70,8 +70,8 @@ class FishGeometryModel(csdl.Model):
         # self.register_output('i', i)
         # self.register_output('j', j)
 
-        x_head = np.linspace(start_epsilon, L, head_pts,endpoint=False) * csdl.expand(x1,shape=head_pts) # figure out whether this works
-        x_body = np.linspace(0, L, body_pts,endpoint=False) * csdl.expand((x2 - x1),shape=body_pts) + csdl.expand(x1,shape=body_pts)
+        x_head = np.linspace(start_epsilon, L, head_pts,endpoint=True) * csdl.expand(x1,shape=head_pts) # figure out whether this works
+        x_body = np.linspace(0, L, body_pts,endpoint=True) * csdl.expand((x2 - x1),shape=body_pts) + csdl.expand(x1,shape=body_pts)
         x_tail = np.linspace(0, L, tail_pts) * csdl.expand((L - x2),shape=tail_pts) + csdl.expand(x2,shape=tail_pts)
         self.register_output('x_head', x_head)
         self.register_output('x_body', x_body)
@@ -269,87 +269,87 @@ if __name__ == '__main__':
 
     plt.legend(handles=legend_handles, loc='best', fontsize=12)  
 
-    # plt.figure(figsize=(6, 3))
-    # plt.plot(x_head, head_height_profile, '.-', label="Head quadratic")
-    # plt.plot(x_body, body_height_profile, '.-', label="Body cubic")
-    # plt.plot(x_tail, tail_height_profile, '.-', label="Tail quadratic")
-    # plt.show()
+# plt.figure(figsize=(6, 3))
+# plt.plot(x_head, head_height_profile, '.-', label="Head quadratic")
+# plt.plot(x_body, body_height_profile, '.-', label="Body cubic")
+# plt.plot(x_tail, tail_height_profile, '.-', label="Tail quadratic")
+# plt.show()
 
-    # # mesh = simulator['fish_rigid_mesh'].copy()
-    # mesh = simulator['fish_system_model_0.eel_rigid_mesh'].copy()
-    # # print('mesh', mesh[:,-1,2])
-    # # add two subplots veritcally
-
-
-    # # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-', color='black')
-    # # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-', color='black')
-    # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-',color='black',linewidth=0.4)
-    # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-',color='black',linewidth=0.4)
-    # plt.axis('equal')
-    # plt.show()
+# # mesh = simulator['fish_rigid_mesh'].copy()
+# mesh = simulator['fish_system_model_0.eel_rigid_mesh'].copy()
+# # print('mesh', mesh[:,-1,2])
+# # add two subplots veritcally
 
 
-    x_top_profile = mesh[:,-1,0]
-    z_top_profile = mesh[:,-1,2]
-
-    x_bottom_profile = mesh[:,0,0]
-    z_bottom_profile = mesh[:,0,2]
-
-
-    plt.figure(figsize=(8, 4))
-    plt.plot(x_top_profile[:head_pts], z_top_profile[:head_pts], 'r-',linewidth=1)        # top edge
-    plt.plot(x_bottom_profile[:head_pts], z_bottom_profile[:head_pts], 'r-',linewidth=1)  # bottom edge
-
-    plt.plot(x_top_profile[head_pts:head_pts+body_pts], z_top_profile[head_pts:head_pts+body_pts], 'grey',linewidth=1)        # top edge
-    plt.plot(x_bottom_profile[head_pts:head_pts+body_pts], z_bottom_profile[head_pts:head_pts+body_pts], 'grey',linewidth=1)  # bottom edge
-
-    plt.plot(x_top_profile[head_pts+body_pts:], z_top_profile[head_pts+body_pts:], 'b-',linewidth=1)        # top edge
-    plt.plot(x_bottom_profile[head_pts+body_pts:], z_bottom_profile[head_pts+body_pts:], 'b-',linewidth=1)  # bottom edge
-
-    plt.plot(mesh[:,0,0], R(mesh[:,0,0])+0.06,'--', color = 'black',markerfacecolor='none',linewidth=1.5)
-    plt.plot(x_head[0], head_height_profile[0],'o',color ='black' ,markerfacecolor='none',linewidth=3)
-    plt.plot(x_head[-1], head_height_profile[-1],'o',color ='black' ,markerfacecolor='none',label="Head quadratic",linewidth=3)
-    # plt.plot(x_body[0], body_height_profile[0], 'o', markerfacecolor='none',linewidth=3)
-    plt.plot(x_body[-1], body_height_profile[-1],'o',color ='black',markerfacecolor='none',label="Body cubic",linewidth=3)
-    plt.plot(x_tail[0], tail_height_profile[0],'o',color ='black',markerfacecolor='none',label="Tail quadratic",linewidth=3)
-    plt.plot(x_tail[-1], tail_height_profile[-1],'o',color ='black',markerfacecolor='none',label="Tail quadratic",linewidth=3)
+# # plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-', color='black')
+# # plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-', color='black')
+# plt.plot(mesh[:,:,0],mesh[:,:,2]+0., '.-',color='black',linewidth=0.4)
+# plt.plot(mesh[:,:,0].T,mesh[:,:,2].T, '.-',color='black',linewidth=0.4)
+# plt.axis('equal')
+# plt.show()
 
 
-    # "Fill" between them
-    plt.fill_between(
-        x_top_profile[:head_pts], 
-        z_top_profile[:head_pts], 
-        z_bottom_profile[:head_pts],
-        color='red', alpha=0.3
-    )
-    plt.fill_between(
-        x_top_profile[head_pts:head_pts+body_pts], 
-        z_top_profile[head_pts:head_pts+body_pts], 
-        z_bottom_profile[head_pts:head_pts+body_pts],
-        color='gray', alpha=0.3
-    )
-    plt.fill_between(
-        x_top_profile[head_pts+body_pts:], 
-        z_top_profile[head_pts+body_pts:], 
-        z_bottom_profile[head_pts+body_pts:],
-        color='blue', alpha=0.3,
-        # label='Tail quadratic curve',
-    )
+x_top_profile = mesh[:,-1,0]
+z_top_profile = mesh[:,-1,2]
 
-    plt.ylim(-0.25,0.25)
+x_bottom_profile = mesh[:,0,0]
+z_bottom_profile = mesh[:,0,2]
 
-    plt.axis('equal')
-    legend_handles = [
-        Line2D([0], [0], color='red', lw=2, label='Head'),
-        Line2D([0], [0], color='grey', lw=2, label='Body'),
-        Line2D([0], [0], color='blue', lw=2, label='Tail'),
-        Line2D([0], [0], color='black', linestyle='--',lw=2, label='Ref. [33]'),
-        # Line2D([0], [0], color=colsor_list[2], lw=2, label='$V_x=0.9$ m/s')
-    ] 
-    plt.xlabel('x (m)',fontsize=12)
-    plt.ylabel('Height (m)',fontsize=12)
-    plt.tight_layout()
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.legend(handles=legend_handles, loc='best', fontsize=12, ncol=4) 
-    plt.show()
+
+plt.figure(figsize=(8, 4))
+plt.plot(x_top_profile[:head_pts], z_top_profile[:head_pts], 'r-',linewidth=1)        # top edge
+plt.plot(x_bottom_profile[:head_pts], z_bottom_profile[:head_pts], 'r-',linewidth=1)  # bottom edge
+
+plt.plot(x_top_profile[head_pts:head_pts+body_pts], z_top_profile[head_pts:head_pts+body_pts], 'grey',linewidth=1)        # top edge
+plt.plot(x_bottom_profile[head_pts:head_pts+body_pts], z_bottom_profile[head_pts:head_pts+body_pts], 'grey',linewidth=1)  # bottom edge
+
+plt.plot(x_top_profile[head_pts+body_pts:], z_top_profile[head_pts+body_pts:], 'b-',linewidth=1)        # top edge
+plt.plot(x_bottom_profile[head_pts+body_pts:], z_bottom_profile[head_pts+body_pts:], 'b-',linewidth=1)  # bottom edge
+
+plt.plot(mesh[:,0,0], R(mesh[:,0,0])+0.06,'--', color = 'black',markerfacecolor='none',linewidth=1.5)
+plt.plot(x_head[0], head_height_profile[0],'o',color ='black' ,markerfacecolor='none',linewidth=3)
+plt.plot(x_head[-1], head_height_profile[-1],'o',color ='black' ,markerfacecolor='none',label="Head quadratic",linewidth=3)
+# plt.plot(x_body[0], body_height_profile[0], 'o', markerfacecolor='none',linewidth=3)
+plt.plot(x_body[-1], body_height_profile[-1],'o',color ='black',markerfacecolor='none',label="Body cubic",linewidth=3)
+plt.plot(x_tail[0], tail_height_profile[0],'o',color ='black',markerfacecolor='none',label="Tail quadratic",linewidth=3)
+plt.plot(x_tail[-1], tail_height_profile[-1],'o',color ='black',markerfacecolor='none',label="Tail quadratic",linewidth=3)
+
+
+# "Fill" between them
+plt.fill_between(
+    x_top_profile[:head_pts], 
+    z_top_profile[:head_pts], 
+    z_bottom_profile[:head_pts],
+    color='red', alpha=0.3
+)
+plt.fill_between(
+    x_top_profile[head_pts:head_pts+body_pts], 
+    z_top_profile[head_pts:head_pts+body_pts], 
+    z_bottom_profile[head_pts:head_pts+body_pts],
+    color='gray', alpha=0.3
+)
+plt.fill_between(
+    x_top_profile[head_pts+body_pts:], 
+    z_top_profile[head_pts+body_pts:], 
+    z_bottom_profile[head_pts+body_pts:],
+    color='blue', alpha=0.3,
+    # label='Tail quadratic curve',
+)
+
+plt.ylim(-0.25,0.25)
+
+plt.axis('equal')
+legend_handles = [
+    Line2D([0], [0], color='red', lw=2, label='Head'),
+    Line2D([0], [0], color='grey', lw=2, label='Body'),
+    Line2D([0], [0], color='blue', lw=2, label='Tail'),
+    Line2D([0], [0], color='black', linestyle='--',lw=2, label='Ref. [33]'),
+    # Line2D([0], [0], color=colsor_list[2], lw=2, label='$V_x=0.9$ m/s')
+] 
+plt.xlabel('x (m)',fontsize=12)
+plt.ylabel('Height (m)',fontsize=12)
+plt.tight_layout()
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.legend(handles=legend_handles, loc='best', fontsize=12, ncol=4) 
+plt.show()
