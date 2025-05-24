@@ -387,6 +387,28 @@ if run_opt == True:
     optimizer.solve()
     optimizer.print_results(summary_table=True)
 
+# print all design variables
+for item in simulator.dv_keys:
+    print(item, simulator[item])
+
+# print constraints
+for item in simulator.constraint_keys:
+    print(item, simulator[item])
+
+# List of available models (you can dynamically identify them)
+available_models = fish_model_list
+available_models = sorted(set(available_models))  # Remove duplicates and sort
+
+# print outputs
+for model in available_models:
+    print(model)
+    # print('tail_frequency', simulator[f"{model}.tail_frequency"])
+    # print('amplitude_max', simulator[f"{model}.amplitude_max"])
+    # print('theta_max', simulator[f"{model}.theta_max"])
+    # print('efficiency', simulator[f"{model}.efficiency"])
+    print('panel_total_power', simulator[f"{model}.panel_total_power"])
+    print('thrust_power', simulator[f"{model}.thrust_power"])
+
 if run_opt:
     case_name = '_' + problem_name + '.csv'
     

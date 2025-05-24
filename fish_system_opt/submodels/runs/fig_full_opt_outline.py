@@ -61,8 +61,8 @@ class FishGeometryModel(csdl.Model):
         j = (L**2*h2 - 2*L*h2*x2 + tail_width*x2**2)/(L**2 - 2*L*x2 + x2**2)
 
 
-        x_head = np.linspace(start_epsilon, L, head_pts,endpoint=True) * csdl.expand(x1,shape=head_pts) # figure out whether this works
-        x_body = np.linspace(0, L, body_pts,endpoint=True) * csdl.expand((x2 - x1),shape=body_pts) + csdl.expand(x1,shape=body_pts)
+        x_head = np.linspace(start_epsilon, L, head_pts,endpoint=False) * csdl.expand(x1,shape=head_pts) # figure out whether this works
+        x_body = np.linspace(0, L, body_pts,endpoint=False) * csdl.expand((x2 - x1),shape=body_pts) + csdl.expand(x1,shape=body_pts)
         x_tail = np.linspace(0, L, tail_pts) * csdl.expand((L - x2),shape=tail_pts) + csdl.expand(x2,shape=tail_pts)
         self.register_output('x_head', x_head)
         self.register_output('x_body', x_body)
@@ -131,10 +131,10 @@ if __name__ == '__main__':
     # h2_val_list = [0.0518,0.0962,0.096]
     # tail_width_val_list = [0.14218215,0.14218215,0.14218215,]
 
-    x1_val_list = [0.516,]
-    x2_val_list = [0.898]
-    h1_val_list = [0.118]
-    h2_val_list = [0.088]
+    x1_val_list = [.55560963]
+    x2_val_list = [0.631]
+    h1_val_list = [0.1197]
+    h2_val_list = [0.0962]
     tail_width_val_list = [0.14218215]
     color_list = ['b'] 
     line_type_list = ['-'] 
