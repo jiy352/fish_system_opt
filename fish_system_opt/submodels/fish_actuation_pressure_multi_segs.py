@@ -27,13 +27,15 @@ class EelAmplitudeModel(csdl.Model):
 
         # Loop through segments and assign phase
         for i, seg_name in enumerate(seg_names):
-            phase =  phi[i]  # accumulate phase shift
-            angle = amplitude_expand * csdl.cos(2 * np.pi * f_expand * time_vector + phase)
-            theta_dot = -2 * np.pi * f_expand * amplitude_expand * csdl.sin(2 * np.pi * f_expand * time_vector + phase)
+            if i<2:
+                phase =  phi[i]  # accumulate phase shift
+                angle = amplitude_expand * csdl.cos(2 * np.pi * f_expand * time_vector + phase)
+                theta_dot = -2 * np.pi * f_expand * amplitude_expand * csdl.sin(2 * np.pi * f_expand * time_vector + phase)
 
-            self.register_output(f'{seg_name}_theta', angle)
-            self.register_output(f'{seg_name}_theta_dot', theta_dot)
-            
+                self.register_output(f'{seg_name}_theta', angle)
+                self.register_output(f'{seg_name}_theta_dot', theta_dot)
+            else:
+                pass
 
         # Also output raw amplitude for reference
         self.register_output('amplitude_deg', amplitude * 180 / np.pi)

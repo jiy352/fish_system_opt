@@ -150,6 +150,7 @@ class CCM(csdl.Model):
             # T_base = self._compute_base_transformation(tip_trans_matrix_list,T_base_list)
             if i==0:
                 v_global = actuator_vel_local_pad*1.
+                self.register_output(var_name + '_actuator_vel_global', v_global)
                 name = var_name + '_T_dot'
                 T_dot = self.create_output(name, shape=(num_time_steps, 4, 4), val=0.0)
                 self._compute_tip_trans_matrix_dot(T_dot,R, theta_var, R_dot, theta_dot_var)
@@ -167,13 +168,22 @@ class CCM(csdl.Model):
             elif i==1:
                 T_base = T_base_list[-1]
                 T_dot_base = T_dot_base_list[-1]
+                dt = 0.0060404
+                T_dot_base_fd = self.create_output(var_name + '_T_dot_base_fd', shape=(num_time_steps, 4, 4), val=0.0)
+                print('T_base:', T_dot_base_fd.name,)
+                
+                
+                T_dot_base_fd[1:,:,:]  = (T_base[1:,:,:] - T_base[:num_time_steps -1 ,:,:])/dt 
+                # finite difference to get the derivative of the base transformation matrix
                 v_global = self._transform_velocity_to_global_frame(
                     actuator_pts_local,
                     actuator_vel_local_pad,
                     T_base,
-                    T_dot_base,
+                    T_dot_base_fd,
                     # name_prefix=var_name
                 )
+                self.register_output(var_name + '_actuator_vel_global', v_global)
+
                 name = var_name + '_T_dot'
 
                 T_dot = self.create_output(name, shape=(num_time_steps, 4, 4), val=0.0)
@@ -463,18 +473,19 @@ if __name__ == '__main__':
     plt.rcParams['text.usetex'] = False
 
     # Setup for two segments
-    num_time_steps = 60
+    num_time_steps = 100
     num_pts_segments = 15
     seg_names = ['seg1', 'seg2']
     input_seg_shapes = [(num_time_steps,num_pts_segments), (num_time_steps,num_pts_segments)]
-    NUM_PERIODS = 2
+    NUM_PERIODS = 0.5
 
     # Create model and simulator
     model = csdl.Model()
 
     frequency_val = 1.0
     T = 1 / frequency_val
-    time_vals = np.linspace(1e-3, NUM_PERIODS * T - 1e-3, num_time_steps)
+    time_vals = np.linspace(1e-3, NUM_PERIODS * T, num_time_steps)
+    exit()
 
     # # Segment names and phase shifts (e.g., segment_0 leads by π/2)
     # seg_names = ['seg_0', 'seg_1', 'seg_2']
@@ -560,3 +571,99 @@ if __name__ == '__main__':
     plt.show()
 
     np.set_printoptions(precision=4, suppress=False, floatmode='maxprec_equal')
+
+
+
+
+
+
+
+# import matplotlib.pyplot as plt
+
+# # How many time steps to skip between frames (adjust for clarity)
+# plot_every_n = 10
+
+# # Loop through selected time steps
+# for t in range(0, num_time_steps, plot_every_n):
+#     plt.figure(figsize=(8, 6))
+#     plt.title(f"Actuator Points and Velocities (XY) at Time Step {t}")
+#     plt.xlabel('X')
+#     plt.ylabel('Y')
+#     plt.grid(True)
+#     plt.axis('equal')
+
+#     for seg in seg_names:
+#         # Extract global positions and local velocities (2D projection)
+#         pts = sim[f"{seg}_actuator_pts_global"][t]  # (num_pts, 3)
+#         vel = sim[f"{seg}_actuator_vel_local"][t]   # (num_pts, 3)
+
+#         # Only use x and y
+#         x, y = pts[:, 0], pts[:, 1]
+#         u, v = vel[:, 0], vel[:, 1]
+
+#         # Scatter plot for points
+#         plt.scatter(x, y, label=f"{seg} points")
+
+#         # Quiver plot for velocities
+#         plt.quiver(x, y, u, v, angles='xy', scale_units='xy', scale=1, width=0.002)
+
+#     plt.legend()
+#     plt.tight_layout()
+#     plt.show()
+
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.set_title("Actuator Points and Velocities Over Time (XY)")
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
+ax.grid(True)
+ax.axis("equal")
+
+# Limits (optional: adjust based on your data)
+ax.set_xlim(-0.1, 0.5)
+ax.set_ylim(-0.3, 0.3)
+
+scatters = []
+quivers = []
+quivers_local = []
+
+# Initialize plots for each segment
+for seg in seg_names:
+    scatter, = ax.plot([], [], 'o', label=f"{seg} points")
+    quiver = ax.quiver([], [], [], [], angles='xy', scale_units='xy', scale=1, width=0.002)
+    quiver_local = ax.quiver([], [], [], [], angles='xy', color='red', scale_units='xy', scale=1, width=0.002)
+    scatters.append(scatter)
+    quivers.append(quiver)
+    quivers_local.append(quiver_local)
+
+ax.legend()
+
+def update(t):
+    for i, seg in enumerate(seg_names):
+        pts = sim[f"{seg}_actuator_pts_global"][t]  # shape (num_pts, 3)
+        vel = sim[f"{seg}_actuator_vel_global"][t]   # shape (num_pts, 3)
+        vel_local = sim[f"{seg}_actuator_vel_local"][t]
+
+        x, y = pts[:, 0], pts[:, 1]
+        u, v = vel[:, 0], vel[:, 1]
+        u_local, v_local = vel_local[:, 0], vel_local[:, 1]
+
+        # Update scatter plot
+        scatters[i].set_data(x, y)
+
+        # Remove the old quiver and draw a new one
+        quivers[i].remove()
+        # quivers_local[i].remove()
+
+        quivers[i] = ax.quiver(x, y, u, v, angles='xy', scale_units='xy', scale=1, width=0.002)
+        # quivers_local[i] = ax.quiver(x, y, u_local, v_local, angles='xy', color='red', scale_units='xy', scale=1, width=0.002)
+
+    return scatters + quivers #+ quivers_local
+
+
+ani = FuncAnimation(fig, update, frames=num_time_steps, interval=500, blit=False)
+
+plt.tight_layout()
+plt.show()
